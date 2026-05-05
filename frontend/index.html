@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title> Car Management System </title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@400;500;600&display=swap"
+    rel="stylesheet" />
+
+  <link rel="icon" type="image/jpg" href="/car-audi.jpg" />
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* 🔴 THEME MATCHING LOADER (RED–WHITE) */
+    #loader {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, #ffffff, #fff1f2);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      text-align: center;
+    }
+
+    /* Modern red spinner */
+    .chakra {
+      width: 60px;
+      height: 60px;
+      border: 4px solid #fee2e2;
+      border-top: 4px solid #dc2626;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 22px;
+      box-shadow: 0 0 18px rgba(220, 38, 38, 0.25);
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Brand title */
+    .title {
+      font-family: 'Cinzel', serif;
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: #111827;
+    }
+
+    .title span {
+      color: #dc2626;
+    }
+
+    /* Subtitle */
+    .subtitle {
+      margin-top: 8px;
+      font-size: 0.9rem;
+      color: #6b7280;
+      letter-spacing: 0.25em;
+      opacity: 0.9;
+    }
+
+    /* Hide app until loader ends */
+    #root {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- 🔴 Updated Loader (Theme Matching) -->
+  <div id="loader">
+    <div class="chakra"></div>
+    <div class="title">LOADING <span>CAR</span></div>
+    <div class="subtitle">BLESSINGS IN PROGRESS</div>
+  </div>
+
+  <div id="root"></div>
+
+  <!-- ⛔ SAME SCRIPT (UNCHANGED) -->
+  <script>
+    setTimeout(() => {
+      document.getElementById("loader").style.display = "none";
+      document.getElementById("root").style.display = "block";
+    }, 2000);
+  </script>
+
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
+</html>
