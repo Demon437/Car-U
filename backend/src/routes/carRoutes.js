@@ -4,13 +4,14 @@ const router = express.Router();
 const adminController = require("../controllers/adminController");
 const carController = require("../controllers/carContoller");
 
-// const router = express.Router();
-
-// BUYER – SMART SEARCH CARS  
+// BUYER – SMART SEARCH CARS
 router.get("/search", carController.searchCars);
 
-// BUYER – FILTERED CARS  
+// BUYER – FILTERED CARS
 router.get("/filter", carController.getFilteredCars);
+
+// FEATURED CARS
+router.get("/featured", carController.getFeaturedCars);
 
 // BUYER – ALL CARS
 router.get("/", carController.getAllCarsForBuyer);

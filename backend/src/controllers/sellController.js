@@ -91,16 +91,16 @@ exports.createSellRequest = async (req, res) => {
     const rcImageUrl = rcImage ? rcImage.path : null;
     const videoUrls = [];
 
-for (const file of videoFile) {
-  const result = await cloudinary.uploader.upload(file.path, {
-    resource_type: "video", // 🔥 VERY IMPORTANT
-    folder: "car-dealership/videos",
-  });
+    for (const file of videoFile) {
+      const result = await cloudinary.uploader.upload(file.path, {
+        resource_type: "video", // 🔥 VERY IMPORTANT
+        folder: "car-dealership/videos",
+      });
 
-  console.log("UPLOADED VIDEO 👉", result.secure_url);
+      console.log("UPLOADED VIDEO 👉", result.secure_url);
 
-  videoUrls.push(result.secure_url);
-}
+      videoUrls.push(result.secure_url);
+    }
 
     const rawFeaturesInput =
       req.body.features || req.body["car.features"] || req.body["car[features]"];

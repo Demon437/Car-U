@@ -10,7 +10,7 @@ exports.getAllCarsForBuyer = async (req, res) => {
     console.log("📍 [Controller] getAllCarsForBuyer API called");
     const cars = await CarService.getAllCarsForBuyer();
 
-    console.log("📤 [Controller] Data sent to frontend successfully");
+
     res.json(cars);
   } catch (err) {
     console.error("❌ [Controller] Error in getAllCarsForBuyer:", err.message);
@@ -25,7 +25,7 @@ exports.getFilteredCars = async (req, res) => {
     console.log("📍 [Controller] getFilteredCars API called");
     const result = await CarService.getFilteredCars(req.query);
 
-    console.log("� [Controller] Filtered data sent to frontend successfully");
+
     res.json(result);
   } catch (err) {
     console.error("❌ [Controller] Error in getFilteredCars:", err.message);
@@ -81,7 +81,7 @@ exports.getCarById = async (req, res) => {
       rcDetails: car.rcDetails || {},
     };
 
-    console.log("🚗 FINAL CAR RESPONSE 👉", normalizedCar);
+
 
     res.status(200).json(normalizedCar);
   } catch (err) {
@@ -102,7 +102,7 @@ exports.searchCars = async (req, res) => {
     const { search } = req.query;
     const result = await CarService.searchCars(search);
 
-    console.log("📤 [Controller] Search results sent to frontend successfully");
+
     res.json(result);
   } catch (err) {
     console.error("❌ [Controller] Error in searchCars:", err.message);
@@ -137,5 +137,56 @@ exports.getLiveCars = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+};
+
+// =======================================
+// FEATURED CARS
+// =======================================
+// =======================================
+// FEATURED CARS
+// =======================================
+exports.getFeaturedCars = async (req, res) => {
+  try {
+
+    // ✅ FETCH ONLY LIVE CARS
+    const cars = await Car.find({
+      status: "LIVE",
+    })
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    // ✅ NORMALIZE OLD CARS
+    const normalizedCars = cars.map((car) => {
+
+      // If no cover image exists
+      if (
+        !car.car?.coverImage &&
+        car.car?.images?.length > 0
+      ) {
+        car.car.coverImage =
+          car.car.images[0];
+      }
+
+      return car;
+    });
+
+    console.log(
+      "🔥 FEATURED COVER IMAGE:",
+      normalizedCars[0]?.car?.coverImage
+    );
+
+    res.status(200).json(normalizedCars);
+
+  } catch (err) {
+
+    console.error(
+      "❌ Featured Cars Error:",
+      err
+    );
+
+    res.status(500).json({
+      message: "Failed to fetch featured cars",
+    });
   }
 };

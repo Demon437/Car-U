@@ -55,6 +55,10 @@ const CarSchema = new mongoose.Schema(
             kmDriven: Number,
             condition: String,
             images: [String],
+            coverImage: {
+                type: String,
+                default: "",
+            },
             videos: [String],
 
             /* 🔥 FEATURES */

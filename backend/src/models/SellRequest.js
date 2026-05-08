@@ -119,11 +119,16 @@ const SellRequestSchema = new mongoose.Schema(
             "Minimum 4 images required (front, rear, engine, number plate)",
         },
       },
-      
-videos: {
-  type: [String],
-  default: [],
-},
+
+      coverImage: {
+        type: String,
+        default: "",
+      },
+
+      videos: {
+        type: [String],
+        default: [],
+      },
 
       features: {
         entertainment: { type: [String], default: [] },

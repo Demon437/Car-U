@@ -1,33 +1,125 @@
 const multer = require("multer");
-const { CloudinaryStorage } = require("multer-storage-cloudinary");
-const cloudinary = require("../config/cloudinary");
 
+const {
+  CloudinaryStorage,
+} = require("multer-storage-cloudinary");
+
+const cloudinary =
+  require("../config/cloudinary");
+
+// =======================================
+// CLOUDINARY STORAGE
+// =======================================
 const storage = new CloudinaryStorage({
   cloudinary,
+
   params: async (req, file) => {
-    // Determine resource type based on file mimetype
-    const resourceType = file.mimetype.startsWith('video/') ? 'video' : 'image';
-    
+
+    // =======================================
+    // DETECT FILE TYPE
+    // =======================================
+    let resourceType = "image";
+
+    // ✅ VIDEO FILES
+    if (
+      file.mimetype.startsWith(
+        "video/"
+      )
+    ) {
+
+      resourceType = "video";
+    }
+
+    // ✅ PDF FILES
+    else if (
+      file.mimetype ===
+      "application/pdf"
+    ) {
+
+      // IMPORTANT:
+      // PDFs should be RAW
+      resourceType = "raw";
+    }
+
     return {
       folder: "car-dealership",
+
+      // ✅ IMPORTANT
       resource_type: resourceType,
-      public_id: `${Date.now()}-${file.originalname.split(".")[0]}`,
+
+      // ✅ MAKE FILE PUBLIC
+      type: "upload",
+      access_mode: "public",
+
+      // ✅ KEEP ORIGINAL EXTENSION
+      // Example:
+      // invoice.pdf
+      // rc-book.pdf
+      // video.mp4
+      public_id: `${Date.now()}-${
+        file.originalname
+          .replace(/\s+/g, "-")
+      }`,
     };
   },
 });
 
+// =======================================
+// MULTER CONFIG
+// =======================================
 const upload = multer({
   storage,
+
   limits: {
-    fileSize: 20 * 1024 * 1024, // 50MB (for videos)
-    files:20,
+
+    // ✅ 20MB LIMIT
+    fileSize:
+      20 * 1024 * 1024,
+
+    // ✅ MAX FILES
+    files: 20,
   },
-  // ✅ Accept both images and videos
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
+
+  // =======================================
+  // FILE FILTER
+  // =======================================
+  fileFilter: (
+    req,
+    file,
+    cb
+  ) => {
+
+    const isImage =
+      file.mimetype.startsWith(
+        "image/"
+      );
+
+    const isVideo =
+      file.mimetype.startsWith(
+        "video/"
+      );
+
+    const isPdf =
+      file.mimetype ===
+      "application/pdf";
+
+    // ✅ ALLOW IMAGE / VIDEO / PDF
+    if (
+      isImage ||
+      isVideo ||
+      isPdf
+    ) {
+
       cb(null, true);
+
     } else {
-      cb(new Error('Only image and video files are allowed'), false);
+
+      cb(
+        new Error(
+          "Only image, video and PDF files are allowed"
+        ),
+        false
+      );
     }
   },
 });

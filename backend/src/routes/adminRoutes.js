@@ -8,19 +8,36 @@ const adminAuthController = require("../controllers/adminAuthController");
 const historyController = require("../controllers/historyController");
 
 // DEBUG LOGS (VERY IMPORTANT)
-console.log("auth:", typeof auth);
-console.log("loginAdmin:", typeof adminAuthController.loginAdmin);
-console.log("getDashboardStats:", typeof adminController.getDashboardStats);
-console.log("getPendingSellRequests:", typeof adminController.getPendingSellRequests);
-console.log("approveSellRequest:", typeof adminController.approveSellRequest);
-console.log("rejectSellRequest:", typeof adminController.rejectSellRequest);
-console.log("addOfflineCar:", typeof adminController.addOfflineCar);
-console.log("getLiveCars:", typeof adminController.getLiveCars);
-console.log("markCarAsSold:", typeof adminController.markCarAsSold);
-console.log("getAllHistory:", typeof historyController.getAllHistory);
+// console.log("auth:", typeof auth);
+// console.log("loginAdmin:", typeof adminAuthController.loginAdmin);
+// console.log("getDashboardStats:", typeof adminController.getDashboardStats);
+// console.log("getPendingSellRequests:", typeof adminController.getPendingSellRequests);
+// console.log("approveSellRequest:", typeof adminController.approveSellRequest);
+// console.log("rejectSellRequest:", typeof adminController.rejectSellRequest);
+// console.log("addOfflineCar:", typeof adminController.addOfflineCar);
+// console.log("getLiveCars:", typeof adminController.getLiveCars);
+// console.log("markCarAsSold:", typeof adminController.markCarAsSold);
+// console.log("getAllHistory:", typeof historyController.getAllHistory);
 
 // ================= AUTH =================
-router.post("/login", adminAuthController.loginAdmin);
+
+// LOGIN
+router.post(
+  "/login",
+  adminAuthController.loginAdmin
+);
+
+// FORGOT PASSWORD
+router.post(
+  "/forgot-password",
+  adminAuthController.forgotPassword
+);
+
+// RESET PASSWORD
+router.post(
+  "/reset-password/:token",
+  adminAuthController.resetPassword
+);
 
 // ================= DASHBOARD =================
 router.get("/dashboard-stats", auth, adminController.getDashboardStats);
@@ -41,18 +58,14 @@ router.post(
   "/offline-car",
   auth,
   upload.fields([
-
     { name: "rcImage", maxCount: 1 },
-    { name: "images", maxCount: 10 },
-    { name: "videos", maxCount: 3 },
-    { name: "documents", maxCount: 10 },
 
-    // ✅ ADD SELLER DOCUMENT FILES
-    { name: "documents[0][file]" },
-    { name: "documents[1][file]" },
-    { name: "documents[2][file]" },
-    { name: "documents[3][file]" },
-    { name: "documents[4][file]" },
+    { name: "images", maxCount: 10 },
+
+    { name: "videos", maxCount: 3 },
+
+    // ✅ SELLER DOCUMENTS
+    { name: "sellerDocuments", maxCount: 20 },
   ]),
   adminController.addOfflineCar
 );
@@ -175,6 +188,13 @@ router.get("/document-options", adminController.getDocumentOptions);
 // GET DOCUMENTS LIST
 router.get("/seller-documents", adminController.getSellerDocuments);
 router.get("/buyer-documents", adminController.getBuyerDocuments);
+
+// Delete documents
+router.delete(
+  "/seller-documents/:sellRequestId",
+  auth,
+  adminController.deleteSellerDocument
+);
 
 // UPDATE DOCUMENTS
 router.put("/seller-documents/:sellRequestId", auth, adminController.updateSellerDocuments);

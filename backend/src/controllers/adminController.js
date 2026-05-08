@@ -1,3 +1,4 @@
+require("dotenv").config();
 const SellRequest = require("../models/SellRequest");
 const Car = require("../models/Car");
 const BuyerDetails = require("../models/BuyerDetails");
@@ -115,6 +116,7 @@ exports.approveSellRequest = async (req, res) => {
       // 🔥 IMPORTANT FIX START
       car: {
         ...request.car,
+        year: request.car?.year || req.body.year,
 
         images: Array.isArray(request.car?.images)
           ? request.car.images
@@ -217,23 +219,33 @@ exports.addOfflineCar = async (req, res) => {
     }
 
     // ================= SELLER DOCUMENTS =================
-    let sellerDocuments = [];   
-    if (req.body.documents) {
-      if (!Array.isArray(req.body.documents)) {
-        req.body.documents = [req.body.documents];
-      }
+    let sellerDocuments = [];
 
-      sellerDocuments = req.body.documents.map((doc, index) => {
-        const filesKey = `documents[${index}][file]`;
+    console.log("📄 BODY:", req.body);
+    console.log("📁 FILES:", req.files);
 
-        return {
-          label: doc.label,
-          fileUrls: req.files?.[filesKey]
-            ? req.files[filesKey].map((f) => f.path)
-            : [],
-        };
-      });
-    }
+    // ✅ GET LABELS
+    const sellerDocLabels =
+      req.body.sellerDocuments || [];
+
+    // ✅ GET FILES
+    const sellerDocFiles =
+      req.files?.sellerDocuments || [];
+
+    sellerDocuments = sellerDocFiles.map(
+      (file, index) => ({
+        label:
+          sellerDocLabels?.[index]?.label ||
+          `Document ${index + 1}`,
+
+        fileUrls: [file.path],
+      })
+    );
+
+    console.log(
+      "✅ FINAL SELLER DOCS:",
+      sellerDocuments
+    );
 
     // ================= VALIDATION =================
     if (!seller?.name || !seller?.phone || !seller?.city) {
@@ -259,6 +271,13 @@ exports.addOfflineCar = async (req, res) => {
     // ================= FILE UPLOAD =================
     const rcImageUrl = req.files.rcImage[0].path;
     const carImageUrls = req.files.images.map((file) => file.path);
+
+    const coverImageIndex =
+      Number(req.body.coverImageIndex || 0);
+
+    const coverImage =
+      carImageUrls[coverImageIndex] ||
+      carImageUrls[0];
 
 
 
@@ -290,14 +309,21 @@ exports.addOfflineCar = async (req, res) => {
       videos: videoUrls,
     });
 
+    console.log("🔥 FINAL parsedCar 👉", parsedCar);
+
     const sellRequest = await SellRequest.create({
       source: "OFFLINE",
       seller,
       car: {
         ...parsedCar,
+
+        coverImage,
+
+        // 🔥 FORCE YEAR FIX
+        year: parsedCar.year || car.year || req.body.year,
+
         images: carImageUrls,
         videos: videoUrls,
-
       },
       rcDetails: {
         ...rcDetails,
@@ -1142,7 +1168,12 @@ exports.getFinalInvoice = async (req, res) => {
 exports.updateSellRequest = async (req, res) => {
   try {
     const { id } = req.params;
-    const { expectedPrice, adminSellingPrice, features } = req.body;
+    const {
+      expectedPrice,
+      adminSellingPrice,
+      features,
+      coverImageIndex,
+    } = req.body;
 
     const request = await SellRequest.findById(id);
 
@@ -1169,6 +1200,25 @@ exports.updateSellRequest = async (req, res) => {
       request.car.images = [...(request.car.images || []), ...newImageUrls];
     }
 
+    // ✅ HANDLE COVER IMAGE
+    if (request.car.images?.length > 0) {
+
+      // If admin selected cover image
+      if (coverImageIndex !== undefined) {
+
+        request.car.coverImage =
+          request.car.images[
+          Number(coverImageIndex)
+          ] || request.car.images[0];
+
+      } else if (!request.car.coverImage) {
+
+        // ✅ fallback for old cars
+        request.car.coverImage =
+          request.car.images[0];
+      }
+    }
+
     await request.save();
 
     if (request.status === "APPROVED") {
@@ -1177,9 +1227,19 @@ exports.updateSellRequest = async (req, res) => {
         {
           $set: {
             sellerPrice: request.sellerPrice,
-            adminSellingPrice: request.adminSellingPrice,
-            "car.features": request.car.features,
-            "car.images": request.car.images,
+
+            adminSellingPrice:
+              request.adminSellingPrice,
+
+            "car.features":
+              request.car.features,
+
+            "car.images":
+              request.car.images,
+
+            // ✅ COVER IMAGE
+            "car.coverImage":
+              request.car.coverImage,
           },
         }
       );
@@ -1285,7 +1345,7 @@ exports.getCarById = async (req, res) => {
       transmission: car.car?.transmission || null,
       condition: car.car?.condition || null,
       images: car.car?.images || [],
-        videos: car.car?.videos || [], 
+      videos: car.car?.videos || [],
       features: car.car?.features || {},
 
       // ===== PRICES =====
@@ -1351,33 +1411,147 @@ exports.getDocumentOptions = async (req, res) => {
 
 exports.getSellerDocuments = async (req, res) => {
   try {
-    const requests = await SellRequest.find({
-      sellerDocuments: { $exists: true, $ne: [] }
-    }).sort({ updatedAt: -1 });
+    const requests = await SellRequest.find()
+      .sort({ updatedAt: -1 });
 
-    const result = requests.map(r => ({
-      sellRequestId: r._id,
+    console.log(
+      "📄 Total Sell Requests:",
+      requests.length
+    );
 
-      car: {
-        brand: r.car.brand,
-        model: r.car.model,
-        variant: r.car.variant,
-        registrationNumber: r.car.registrationNumber,
-      },
+    const result = requests.map((r) => {
+      // ✅ HANDLE BOTH OLD + NEW STRUCTURE
+      const documents =
+        r.sellerDocuments ||
+        r.documents ||
+        [];
 
-      seller: r.seller,
+      return {
+        sellRequestId: r._id,
 
-      documents: r.sellerDocuments, // {label, fileUrls[]}
+        car: {
+          brand: r.car?.brand,
+          model: r.car?.model,
+          variant: r.car?.variant,
+          registrationNumber:
+            r.car?.registrationNumber,
+        },
 
-      createdAt: r.createdAt,
-    }));
+        seller: r.seller || {},
 
-    res.json(result);
+        documents,
+
+        createdAt: r.createdAt,
+      };
+    });
+
+    // ✅ REMOVE EMPTY DOC ITEMS
+    console.log(
+      "✅ Seller Records Found:",
+      result.length
+    );
+
+    res.status(200).json(result);
   } catch (err) {
-    console.error("getSellerDocuments error", err);
-    res.status(500).json({ message: "Failed to load seller documents" });
+    console.error(
+      "❌ getSellerDocuments error",
+      err
+    );
+
+    res.status(500).json({
+      message: "Failed to load seller documents",
+    });
   }
 };
+
+exports.deleteSellerDocument =
+  async (req, res) => {
+
+    console.log(
+  "🔥 DELETE DOCUMENT API HIT"
+);
+
+    try {
+
+      const { sellRequestId } =
+        req.params;
+
+      const {
+        label,
+        fileIndex,
+        password,
+      } = req.body;
+
+      console.log(
+        "ENV PASSWORD:",
+        process.env.ADMIN_DELETE_PASSWORD
+      );
+
+      // ✅ PASSWORD VALIDATION
+      if (
+        password !==
+        process.env.ADMIN_DELETE_PASSWORD
+      ) {
+        return res.status(401).json({
+          message:
+            "Invalid admin password",
+        });
+      }
+
+      const sellRequest =
+        await SellRequest.findById(
+          sellRequestId
+        );
+
+      if (!sellRequest) {
+        return res.status(404).json({
+          message:
+            "Sell request not found",
+        });
+      }
+
+      const document =
+        sellRequest.sellerDocuments.find(
+          (d) => d.label === label
+        );
+
+      if (!document) {
+        return res.status(404).json({
+          message:
+            "Document not found",
+        });
+      }
+
+      // ✅ REMOVE FILE
+      document.fileUrls.splice(
+        fileIndex,
+        1
+      );
+
+      // ✅ REMOVE EMPTY DOC GROUP
+      sellRequest.sellerDocuments =
+        sellRequest.sellerDocuments.filter(
+          (d) =>
+            d.fileUrls.length > 0
+        );
+
+      await sellRequest.save();
+
+      res.json({
+        message:
+          "Document deleted successfully",
+      });
+
+    } catch (err) {
+
+      console.error(err);
+
+      res.status(500).json({
+        message:
+          "Delete failed",
+      });
+    }
+  };
 
 
 
