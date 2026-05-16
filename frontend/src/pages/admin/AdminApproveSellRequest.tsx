@@ -42,6 +42,7 @@ interface Car {
   kmDriven: number;
   condition?: string;
   images: string[];
+  coverImage?: string;
 
   videos?: string[];
 
@@ -68,6 +69,25 @@ interface SellRequest {
   sellerPrice: number;
   adminSellingPrice?: number;
 
+
+  sellerSettlement?: {
+    onlinePayment?: {
+      paymentMode?: string;
+      bankName?: string;
+      transactionId?: string;
+      amount?: number;
+    };
+
+    cashPayment?: {
+      amount?: number;
+      receivedBy?: string;
+    };
+
+    totalPurchaseAmount?: number;
+    totalPaidAmount?: number;
+    dueAmount?: number;
+  };
+
   status: "PENDING" | "APPROVED" | "REJECTED" | "SOLD";
   createdAt: string;
 }
@@ -86,6 +106,43 @@ const AdminApproveSellRequest: React.FC<Props> = ({ requestId, onClose }) => {
   const [adminPrice, setAdminPrice] = useState("");
   const [data, setData] = useState<SellRequest | null>(null);
   console.log("DATA 👉", data);
+
+
+  const [sellerSettlement, setSellerSettlement] = useState({
+    onlinePayment: {
+      paymentMode: "",
+      bankName: "",
+      transactionId: "",
+      amount: "",
+    },
+
+    cashPayment: {
+      amount: "",
+      receivedBy: "",
+    },
+
+    totalPurchaseAmount: 0,
+    totalPaidAmount: 0,
+    dueAmount: 0,
+  });
+
+
+  const onlineAmount =
+    Number(sellerSettlement.onlinePayment.amount) || 0;
+
+  const cashAmount =
+    Number(sellerSettlement.cashPayment.amount) || 0;
+
+  const totalPaidAmount =
+    onlineAmount + cashAmount;
+
+  const totalPurchaseAmount =
+    Number(data?.sellerPrice) || 0;
+
+
+  const dueAmount =
+    totalPurchaseAmount - totalPaidAmount;
+
 
   const [error, setError] = useState("");
   const [expenses, setExpenses] = useState<AdminExpense[]>([
@@ -112,6 +169,8 @@ const AdminApproveSellRequest: React.FC<Props> = ({ requestId, onClose }) => {
     interiorExterior: [],
     custom: [],
   });
+  const [coverImageIndex, setCoverImageIndex] =
+    useState(0);
 
   /* ================= FETCH REQUEST ================= */
 
@@ -192,7 +251,16 @@ const AdminApproveSellRequest: React.FC<Props> = ({ requestId, onClose }) => {
     try {
       const payload = {
         adminSellingPrice: Number(adminPrice),
+        coverImageIndex,
+        sellerSettlement: {
+          ...sellerSettlement,
 
+          totalPurchaseAmount,
+
+          totalPaidAmount,
+
+          dueAmount,
+        },
         adminExpenses: expenses
           .filter(e => e.label && e.amount)
           .map(e => ({
@@ -211,9 +279,14 @@ const AdminApproveSellRequest: React.FC<Props> = ({ requestId, onClose }) => {
       };
       console.log("🔥 APPROVE REQUEST PAYLOAD:", payload);
 
+
+
       const res = await api.put(`/admin/approve/${requestId}`, payload);
 
       console.log("✅ APPROVE RESPONSE:", res.data);
+
+
+
 
       alert("Sell request approved successfully ✅");
 
@@ -414,6 +487,229 @@ const AdminApproveSellRequest: React.FC<Props> = ({ requestId, onClose }) => {
               )}
             </div>
           </section>
+          <section className="bg-blue-50 border border-blue-200 rounded-xl p-4 sm:p-5 md:p-6 shadow-sm mt-6">
+
+  <h3 className="text-lg md:text-xl font-semibold text-blue-900 mb-6 flex items-center">
+    🏦 Seller Settlement Details
+  </h3>
+
+  {/* ONLINE PAYMENT */}
+  <div className="mb-8">
+
+    <h4 className="text-base md:text-lg font-semibold text-gray-900 mb-5">
+      Online Payment
+    </h4>
+
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+      {/* PAYMENT MODE */}
+      <div>
+        <label className="block text-sm font-medium text-gray-800 mb-2">
+          Payment Mode
+        </label>
+
+        <input
+          type="text"
+          placeholder="UPI / NEFT / RTGS"
+          value={sellerSettlement.onlinePayment.paymentMode}
+          onChange={(e) =>
+            setSellerSettlement({
+              ...sellerSettlement,
+              onlinePayment: {
+                ...sellerSettlement.onlinePayment,
+                paymentMode: e.target.value,
+              },
+            })
+          }
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-700 outline-none focus:ring-2 focus:ring-blue-400"
+        />
+      </div>
+
+      {/* BANK NAME */}
+      <div>
+        <label className="block text-sm font-medium text-gray-800 mb-2">
+          Bank Name
+        </label>
+
+        <input
+          type="text"
+          placeholder="HDFC Bank"
+          value={sellerSettlement.onlinePayment.bankName}
+          onChange={(e) =>
+            setSellerSettlement({
+              ...sellerSettlement,
+              onlinePayment: {
+                ...sellerSettlement.onlinePayment,
+                bankName: e.target.value,
+              },
+            })
+          }
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-700 outline-none focus:ring-2 focus:ring-blue-400"
+        />
+      </div>
+
+      {/* TRANSACTION ID */}
+      <div>
+        <label className="block text-sm font-medium text-gray-800 mb-2">
+          Transaction ID
+        </label>
+
+        <input
+          type="text"
+          placeholder="Transaction / UTR ID"
+          value={sellerSettlement.onlinePayment.transactionId}
+          onChange={(e) =>
+            setSellerSettlement({
+              ...sellerSettlement,
+              onlinePayment: {
+                ...sellerSettlement.onlinePayment,
+                transactionId: e.target.value,
+              },
+            })
+          }
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-700 outline-none focus:ring-2 focus:ring-blue-400"
+        />
+      </div>
+
+      {/* ONLINE AMOUNT */}
+      <div>
+        <label className="block text-sm font-medium text-gray-800 mb-2">
+          Online Amount (₹)
+        </label>
+
+        <input
+          type="number"
+          placeholder="e.g., 200000"
+          value={sellerSettlement.onlinePayment.amount}
+          onChange={(e) =>
+            setSellerSettlement({
+              ...sellerSettlement,
+              onlinePayment: {
+                ...sellerSettlement.onlinePayment,
+                amount: e.target.value,
+              },
+            })
+          }
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-700 outline-none focus:ring-2 focus:ring-blue-400"
+        />
+      </div>
+
+    </div>
+  </div>
+
+  {/* CASH PAYMENT */}
+  <div className="mb-8">
+
+    <h4 className="text-base md:text-lg font-semibold text-gray-900 mb-5">
+      Cash Payment
+    </h4>
+
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+      {/* CASH AMOUNT */}
+      <div>
+        <label className="block text-sm font-medium text-gray-800 mb-2">
+          Cash Amount (₹)
+        </label>
+
+        <input
+          type="number"
+          placeholder="e.g., 50000"
+          value={sellerSettlement.cashPayment.amount}
+          onChange={(e) =>
+            setSellerSettlement({
+              ...sellerSettlement,
+              cashPayment: {
+                ...sellerSettlement.cashPayment,
+                amount: e.target.value,
+              },
+            })
+          }
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-700 outline-none focus:ring-2 focus:ring-blue-400"
+        />
+      </div>
+
+      {/* RECEIVED BY */}
+      <div>
+        <label className="block text-sm font-medium text-gray-800 mb-2">
+          Received By
+        </label>
+
+        <input
+          type="text"
+          placeholder="Seller Name"
+          value={sellerSettlement.cashPayment.receivedBy}
+          onChange={(e) =>
+            setSellerSettlement({
+              ...sellerSettlement,
+              cashPayment: {
+                ...sellerSettlement.cashPayment,
+                receivedBy: e.target.value,
+              },
+            })
+          }
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-700 outline-none focus:ring-2 focus:ring-blue-400"
+        />
+      </div>
+
+    </div>
+  </div>
+
+  {/* SUMMARY */}
+  <div className="bg-white border border-gray-200 rounded-2xl p-5">
+
+    <h4 className="text-lg font-semibold text-gray-900 mb-5">
+      Settlement Summary
+    </h4>
+
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+
+      {/* TOTAL PURCHASE */}
+      <div>
+        <label className="block text-sm font-medium text-gray-800 mb-2">
+          Total Purchase Amount
+        </label>
+
+        <input
+          type="text"
+          value={totalPurchaseAmount}
+          readOnly
+          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-700 outline-none"
+        />
+      </div>
+
+      {/* TOTAL PAID */}
+      <div>
+        <label className="block text-sm font-medium text-gray-800 mb-2">
+          Total Paid Amount
+        </label>
+
+        <input
+          type="text"
+          value={totalPaidAmount}
+          readOnly
+          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-700 outline-none"
+        />
+      </div>
+
+      {/* DUE */}
+      <div>
+        <label className="block text-sm font-medium text-gray-800 mb-2">
+          Due Amount
+        </label>
+
+        <input
+          type="text"
+          value={dueAmount}
+          readOnly
+          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-700 outline-none"
+        />
+      </div>
+
+    </div>
+  </div>
+
+</section>
 
           {/* ================= CAR DETAILS ================= */}
           <section className="bg-green-50 border border-green-200 rounded-xl p-4 sm:p-5 md:p-6 shadow-sm">
@@ -478,19 +774,70 @@ const AdminApproveSellRequest: React.FC<Props> = ({ requestId, onClose }) => {
 
             {data.car.images?.length > 0 ? (
               <div className="flex gap-3 overflow-x-auto md:grid md:grid-cols-4 md:gap-4">
-                {data.car.images.map((img, index) => (
-                  <div
-                    key={index}
-                    className="min-w-[140px] md:min-w-0 border border-gray-300 rounded-lg overflow-hidden"
-                  >
-                    <img
-                      src={img}
-                      alt={`Car ${index + 1}`}
-                      className="w-full h-28 md:h-32 object-cover cursor-pointer"
-                      onClick={() => window.open(img, "_blank")}
-                    />
-                  </div>
-                ))}
+                {data.car.images.map((img, index) => {
+                  const isCover =
+                    index === coverImageIndex;
+
+                  return (
+                    <div
+                      key={index}
+                      className="
+          relative
+          min-w-[140px]
+          md:min-w-0
+          border
+          rounded-lg
+          overflow-hidden
+        "
+                    >
+                      {/* IMAGE */}
+                      <img
+                        src={img}
+                        alt={`Car ${index + 1}`}
+                        className="
+            w-full h-28 md:h-32
+            object-cover
+            cursor-pointer
+          "
+                        onClick={() =>
+                          window.open(img, "_blank")
+                        }
+                      />
+
+                      {/* COVER BADGE */}
+                      {isCover && (
+                        <div
+                          className="
+              absolute top-2 left-2
+              bg-green-600 text-white
+              text-[10px]
+              px-2 py-1 rounded-full
+              font-semibold
+            "
+                        >
+                          Cover
+                        </div>
+                      )}
+
+                      {/* SET COVER BUTTON */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCoverImageIndex(index)
+                        }
+                        className="
+            absolute bottom-2 right-2
+            bg-black/70 text-white
+            text-[10px]
+            px-2 py-1 rounded
+            hover:bg-black
+          "
+                      >
+                        Set Cover
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <p className="text-sm italic text-gray-500">

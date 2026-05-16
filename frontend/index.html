@@ -2,48 +2,158 @@
 <html lang="en">
 
 <head>
+  <!-- =========================================
+       BASIC META TAGS
+  ========================================== -->
   <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <title> Car Management System </title>
+  <!-- =========================================
+       PRIMARY SEO
+  ========================================== -->
+  <title>Buy & Sell Second Hand Cars in India | United Motors</title>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <meta name="description"
+    content="Buy and sell second hand cars in India with United Motors. Explore verified used cars, compare prices, and sell your car quickly with instant valuation." />
+
+  <meta name="keywords"
+    content="buy used cars, sell car online India, second hand cars, used cars India, car resale, best used car deals, sell my car fast, car marketplace India" />
+
+  <meta name="author" content="United Motors" />
+  <meta name="robots" content="index, follow" />
+  <meta name="theme-color" content="#dc2626" />
+
+  <!-- =========================================
+       CANONICAL
+  ========================================== -->
+  <link rel="canonical" href="https://unitedmotorsindia.com/" />
+
+  <!-- =========================================
+       FAVICONS & APP ICONS
+       Place all files inside /public
+  ========================================== -->
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png" />
+  <link rel="manifest" href="/site.webmanifest" />
+
+  <!-- =========================================
+       SOCIAL SHARING PREVIEW
+       preview.png should be 1200x630 px
+  ========================================== -->
+  <meta property="og:image" content="https://unitedmotorsindia.com/preview.png" />
+  <meta name="twitter:image" content="https://unitedmotorsindia.com/preview.png" />
+  <link rel="preload" as="image" href="/preview.png" />
+
+  <!-- =========================================
+       OPEN GRAPH (Facebook, WhatsApp, LinkedIn)
+  ========================================== -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="United Motors" />
+  <meta property="og:title" content="Buy & Sell Used Cars | United Motors India" />
+  <meta property="og:description"
+    content="Find verified second hand cars or sell your car instantly with United Motors." />
+  <meta property="og:url" content="https://unitedmotorsindia.com/" />
+  <meta property="og:image:alt" content="United Motors - Buy & Sell Used Cars in India" />
+
+  <!-- =========================================
+       TWITTER CARDS
+  ========================================== -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Buy & Sell Used Cars Online in India | United Motors" />
+  <meta name="twitter:description"
+    content="Explore verified used cars and sell your car at the best price with United Motors." />
+
+  <!-- =========================================
+       MICROSOFT TILE
+  ========================================== -->
+  <meta name="msapplication-TileColor" content="#dc2626" />
+  <meta name="msapplication-TileImage" content="/android-chrome-192x192.png" />
+
+  <!-- =========================================
+       GOOGLE FONTS
+  ========================================== -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@400;500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap"
     rel="stylesheet" />
 
-  <link rel="icon" type="image/jpg" href="/car-audi.jpg" />
+  <!-- =========================================
+       STRUCTURED DATA (JSON-LD)
+  ========================================== -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "AutoDealer",
+    "name": "United Motors",
+    "url": "https://unitedmotorsindia.com",
+    "logo": "https://unitedmotorsindia.com/android-chrome-512x512.png",
+    "image": "https://unitedmotorsindia.com/preview.png",
+    "description": "Buy and sell second hand cars in India. Trusted used car marketplace with verified vehicles and transparent pricing.",
+    "areaServed": {
+      "@type": "Country",
+      "name": "India"
+    },
+    "sameAs": [
+      "https://www.instagram.com/",
+      "https://www.facebook.com/"
+    ]
+  }
+  </script>
 
+  <!-- =========================================
+       LOADER STYLES
+  ========================================== -->
   <style>
+    html,
     body {
       margin: 0;
+      padding: 0;
       font-family: 'Inter', sans-serif;
+      background: #ffffff;
     }
 
-    /* 🔴 THEME MATCHING LOADER (RED–WHITE) */
+    /* Hide app initially */
+    #root {
+      display: none;
+    }
+
+    /* Full-screen loader */
     #loader {
       position: fixed;
       inset: 0;
-      background: linear-gradient(135deg, #ffffff, #fff1f2);
+      z-index: 99999;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      z-index: 9999;
-      text-align: center;
+      background: linear-gradient(135deg, #111827, #991b1b, #111827);
+      color: #ffffff;
+      transition: opacity 0.4s ease, visibility 0.4s ease;
     }
 
-    /* Modern red spinner */
+    #loader.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    /* Spinner */
     .chakra {
-      width: 60px;
-      height: 60px;
-      border: 4px solid #fee2e2;
-      border-top: 4px solid #dc2626;
+      width: 90px;
+      height: 90px;
+      border: 6px solid rgba(255, 255, 255, 0.15);
+      border-top-color: #ffffff;
+      border-right-color: #ef4444;
       border-radius: 50%;
       animation: spin 1s linear infinite;
-      margin-bottom: 22px;
-      box-shadow: 0 0 18px rgba(220, 38, 38, 0.25);
+      margin-bottom: 24px;
+      box-shadow: 0 0 30px rgba(239, 68, 68, 0.35);
     }
 
     @keyframes spin {
@@ -52,54 +162,87 @@
       }
     }
 
-    /* Brand title */
+    /* Title */
     .title {
       font-family: 'Cinzel', serif;
       font-size: 2rem;
       font-weight: 700;
-      letter-spacing: 0.12em;
-      color: #111827;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+      text-align: center;
     }
 
     .title span {
-      color: #dc2626;
+      color: #ef4444;
     }
 
     /* Subtitle */
     .subtitle {
-      margin-top: 8px;
-      font-size: 0.9rem;
-      color: #6b7280;
-      letter-spacing: 0.25em;
-      opacity: 0.9;
+      font-size: 0.75rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.75);
+      text-align: center;
     }
 
-    /* Hide app until loader ends */
-    #root {
-      display: none;
+    @media (max-width: 640px) {
+      .chakra {
+        width: 72px;
+        height: 72px;
+      }
+
+      .title {
+        font-size: 1.5rem;
+      }
+
+      .subtitle {
+        font-size: 0.65rem;
+        letter-spacing: 0.2em;
+      }
     }
   </style>
 </head>
 
 <body>
-  <!-- 🔴 Updated Loader (Theme Matching) -->
+  <!-- =========================================
+       LOADING SCREEN
+  ========================================== -->
   <div id="loader">
     <div class="chakra"></div>
     <div class="title">LOADING <span>CAR</span></div>
-    <div class="subtitle">BLESSINGS IN PROGRESS</div>
+    <div class="subtitle">Blessings in Progress</div>
   </div>
 
+  <!-- =========================================
+       REACT ROOT
+  ========================================== -->
   <div id="root"></div>
 
-  <!-- ⛔ SAME SCRIPT (UNCHANGED) -->
-  <script>
-    setTimeout(() => {
-      document.getElementById("loader").style.display = "none";
-      document.getElementById("root").style.display = "block";
-    }, 2000);
-  </script>
-
+  <!-- =========================================
+       MAIN APP
+  ========================================== -->
   <script type="module" src="/src/main.tsx"></script>
+
+  <!-- =========================================
+       LOADER SCRIPT
+  ========================================== -->
+  <script>
+    window.addEventListener("load", function () {
+      const loader = document.getElementById("loader");
+      const root = document.getElementById("root");
+
+      // Keep loader visible for at least 1.2 seconds
+      setTimeout(() => {
+        if (loader) loader.classList.add("hidden");
+        if (root) root.style.display = "block";
+
+        // Remove loader from DOM after fade-out
+        setTimeout(() => {
+          if (loader) loader.remove();
+        }, 400);
+      }, 1200);
+    });
+  </script>
 </body>
 
 </html>

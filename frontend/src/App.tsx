@@ -23,7 +23,10 @@ import AdminDocuments from "./pages/admin/AdminDocuments";
 import Dealer from "./pages/admin/Dealer";
 import Individual from "./pages/admin/Individual";
 import AllSales from "./pages/admin/AllSales";
+import AllPurchases from "./pages/admin/AllPurchases";
 import SaleDetails from "./pages/admin/SaleDetails";
+import PurchaseDetails from "./pages/admin/PurchaseDetails";
+import PurchaseFinalInvoice from "./pages/admin/PurchaseFinalInvoice";
 
 // Expenses
 import Expenses from "./pages/Expenses";
@@ -33,6 +36,7 @@ import ExpenssEmployee from "./pages/ExpenssEmployee";
 // Invoices (IMPORTANT: STANDALONE)
 import PaymentInvoice from "./pages/admin/PaymentInvoice";
 import FinalInvoice from "./pages/admin/FinalInvoice";
+import PurchasePaymentInvoice from "./pages/admin/PurchasePaymentInvoice";
 
 // Components
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -59,64 +63,78 @@ const App = () => {
           <Toaster />
           {/* <AddMoreFeature /> */}
           <Sonner />
-<BrowserRouter>
-  <ScrollToTop />
+          <BrowserRouter>
+            <ScrollToTop />
 
-  <Routes>
-    {/* ================= PUBLIC ROUTES ================= */}
-    <Route path="/" element={<Index />} />
-    <Route path="/buy" element={<BuyCar />} />
-    <Route path="/sell" element={<SellCar />} />
-    <Route path="/emi-calculator" element={<EMICalculator />} />
-    <Route path="/car/:id" element={<CarDetails />} />
-    <Route path="/contact" element={<Contact />} />
+            <Routes>
+              {/* ================= PUBLIC ROUTES ================= */}
+              <Route path="/" element={<Index />} />
+              <Route path="/buy" element={<BuyCar />} />
+              <Route path="/sell" element={<SellCar />} />
+              <Route path="/emi-calculator" element={<EMICalculator />} />
+              <Route path="/car/:id" element={<CarDetails />} />
+              <Route path="/contact" element={<Contact />} />
 
-    {/* ================= ADMIN LOGIN ================= */}
-    <Route path="/admin/login" element={<AdminLogin />} />
+              {/* ================= ADMIN LOGIN ================= */}
+              <Route path="/admin/login" element={<AdminLogin />} />
 
-    {/* ================= ADMIN PANEL ================= */}
-    <Route
-      path="/admin"
-      element={
-        <ProtectedRoute>
-          <AdminLayout />
-        </ProtectedRoute>
-      }
-    >
-      <Route index element={<Dashboard />} />
-      <Route path="dashboard" element={<Dashboard />} />
-      <Route path="pending" element={<PendingRequests />} />
-      <Route path="approved" element={<ApprovedRequests />} />
-      <Route path="rejected" element={<RejectedRequests />} />
-      <Route path="live-cars" element={<LiveCars />} />
-      <Route path="dealer" element={<Dealer />} />
-      <Route path="individual" element={<Individual />} />
-      <Route path="add-offline" element={<AddOfflineCar />} />
-      <Route path="documents" element={<AdminDocuments />} />
-      <Route path="history" element={<History />} />
+              {/* ================= ADMIN PANEL ================= */}
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute>
+                    <AdminLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<Dashboard />} />
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="pending" element={<PendingRequests />} />
+                <Route path="approved" element={<ApprovedRequests />} />
+                <Route path="rejected" element={<RejectedRequests />} />
+                <Route path="live-cars" element={<LiveCars />} />
+                <Route path="dealer" element={<Dealer />} />
+                <Route path="individual" element={<Individual />} />
+                <Route path="add-offline" element={<AddOfflineCar />} />
+                <Route path="documents" element={<AdminDocuments />} />
+                <Route path="history" element={<History />} />
 
-      {/* SALES */}
-      <Route path="sales" element={<AllSales />} />
-      <Route path="sales/:saleId" element={<SaleDetails />} />
-      <Route path="expenses" element={<Expenses />} />
-      <Route path="expenses-admin" element={<ExpenssAdmin />} />
-      <Route path="expenses-employee" element={<ExpenssEmployee />} />
-    </Route>
+                {/* SALES */}
+                <Route path="sales" element={<AllSales />} />
+                <Route path="sales/:saleId" element={<SaleDetails />} />
 
-    {/* ================= INVOICE (NO SIDEBAR) ================= */}
-    <Route
-      path="/admin/payments/:paymentId/invoice"
-      element={<PaymentInvoice />}
-    />
-    <Route
-      path="/admin/sales/:saleId/final-invoice"
-      element={<FinalInvoice />}
-    />
+                {/* PURCHASES */}
+                <Route path="purchases" element={<AllPurchases />} />
+                <Route path="purchases/:purchaseId" element={<PurchaseDetails />} />
+                <Route path="expenses" element={<Expenses />} />
+                <Route path="expenses-admin" element={<ExpenssAdmin />} />
+                <Route path="expenses-employee" element={<ExpenssEmployee />} />
+              </Route>
 
-    {/* ================= 404 ================= */}
-    <Route path="*" element={<NotFound />} />
-  </Routes>
-</BrowserRouter>
+              {/* ================= INVOICE (NO SIDEBAR) ================= */}
+              <Route
+                path="/admin/payments/:paymentId/invoice"
+                element={<PaymentInvoice />}
+              />
+              <Route
+                path="/admin/sales/:saleId/final-invoice"
+                element={<FinalInvoice />}
+              />
+              <Route
+                path="/admin/purchase-payments/:purchaseId/:paymentIndex/invoice"
+                element={<PurchasePaymentInvoice />}
+              />
+
+              <Route
+                path="/admin/purchase/:id/final-invoice"
+                element={<PurchaseFinalInvoice />}
+              />
+
+
+              {/* ================= 404 ================= */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
 
         </TooltipProvider>
       </ThemeProvider>

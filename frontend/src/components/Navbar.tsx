@@ -58,11 +58,13 @@ const NavbarStyles = () => (
 const Logo = () => {
   return (
     <div className="flex items-center">
-      <img
+      <a href="/" className="flex items-center gap-2">
+        <img
         src={motorsLogo}
         alt="Logo"
         className="h-12 w-auto logo-glow"
       />
+      </a>
     </div>
   );
 };
@@ -95,14 +97,14 @@ const DesktopActions = () => (
 
     <div className="leading-tight text-sm">
       <a
-        href="tel:+911234567890"
+        href="tel:+917000366498"
         className="block text-gray-600 hover:text-red-600 transition"
       >
         +91 7000366498
       </a>
 
       <a
-        href="tel:+911234567890"
+        href="tel:+919425092196"
         className="block text-gray-600 hover:text-red-600 transition"
       >
         +91 9425092196

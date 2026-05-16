@@ -43,6 +43,29 @@ const CarSchema = new mongoose.Schema(
             },
         ],
 
+        /* ================= SELLER SETTLEMENT ================= */
+        sellerSettlement: {
+            onlinePayment: {
+                paymentMode: String,
+                bankName: String,
+                transactionId: String,
+                amount: Number,
+                paymentDate: Date,
+                notes: String,
+            },
+
+            cashPayment: {
+                amount: Number,
+                receivedBy: String,
+                paymentDate: Date,
+                notes: String,
+            },
+
+            totalPurchaseAmount: Number,
+            totalPaidAmount: Number,
+            dueAmount: Number,
+        },
+
         /* ================= CAR DETAILS ================= */
         car: {
             brand: String,
@@ -141,36 +164,74 @@ const CarSchema = new mongoose.Schema(
         payment: {
             type: {
                 type: String,
-                enum: ["CASH", "UPI", "BANK", "LOAN"],
                 default: "CASH",
             },
 
-            cashPaid: {
+            /* ===== TOTAL AMOUNTS ===== */
+            cashAmount: {
+                type: Number,
+                default: 0,
+            },
+            upiAmount: {
+                type: Number,
+                default: 0,
+            },
+            bankAmount: {
+                type: Number,
+                default: 0,
+            },
+            loanAmount: {
+                type: Number,
+                default: 0,
+            },
+            blackAmount: {
                 type: Number,
                 default: 0,
             },
 
-            cashPaymentMode: {
-                type: String,
-                enum: ["CASH", "UPI", "BANK"],
+            /* ===== PAID AMOUNTS ===== */
+            cashPaidAmount: {
+                type: Number,
+                default: 0,
             },
-
-            loanTotal: {
+            upiPaidAmount: {
+                type: Number,
+                default: 0,
+            },
+            bankPaidAmount: {
+                type: Number,
+                default: 0,
+            },
+            loanPaidAmount: {
+                type: Number,
+                default: 0,
+            },
+            blackPaidAmount: {
                 type: Number,
                 default: 0,
             },
 
-            loanPaidNow: {
-                type: Number,
-                default: 0,
-            },
-
+            /* ===== ADDITIONAL INFO ===== */
             financeCompany: {
                 type: String,
                 default: "",
             },
-        },
 
+            upiTransactionId: {
+                type: String,
+                default: "",
+            },
+
+            bankTransactionId: {
+                type: String,
+                default: "",
+            },
+
+            notes: {
+                type: String,
+                default: "",
+            },
+        },
 
         /* ================= EXTRA ADMIN EXPENSES ================= */
         extraAdminExpenses: [

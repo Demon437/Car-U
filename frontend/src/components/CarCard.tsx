@@ -172,7 +172,15 @@ interface CarCardProps {
   };
 }
 
+
 /* ================= COMPONENT ================= */
+
+// ADD THIS FUNCTION HERE
+const formatFeatureName = (feature: string) => {
+  return feature
+    .replace(/([a-z])([A-Z])/g, "$1 $2") // driverAirbag -> driver Airbag
+    .replace(/\b\w/g, (char) => char.toUpperCase()); // capitalize each word
+};
 
 const CarCard = ({
   id,
@@ -204,8 +212,16 @@ const CarCard = ({
   return (
     <Link
       to={`/car/${id}`}
-      className="group block rounded-2xl overflow-hidden bg-white border border-gray-200
-                 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
+      className="group block overflow-hidden rounded-3xl
+  bg-white
+  border border-gray-200/80
+  ring-1 ring-gray-100
+  shadow-lg shadow-gray-200/60
+  hover:shadow-2xl hover:shadow-gray-300/40
+  hover:border-red-200
+  hover:ring-red-100
+  hover:-translate-y-2
+  transition-all duration-500 ease-out"
     >
       {/* ================= IMAGE SECTION ================= */}
       <div className="relative bg-gray-50 h-56 flex items-center justify-center">
@@ -250,13 +266,19 @@ const CarCard = ({
         {/* PRICE + EMI ROW */}
         <div className="flex items-end justify-between">
           <div>
-            <p className={`text-2xl font-bold ${isSold ? "text-red-600" : "text-primary"}`}>
-              {isSold
-                ? "SOLD"
-                : displayPrice
-                  ? `₹${displayPrice}`
-                  : "Price on request"}
+            <p
+              className={`text-2xl font-bold ${isSold ? "text-red-600" : "text-primary"
+                }`}
+            >
+              {displayPrice ? `₹${displayPrice}` : "Price on request"}
             </p>
+
+            {/* Sold Badge */}
+            {isSold && (
+              <p className="text-xs text-red-600 font-bold uppercase mt-1">
+                Sold
+              </p>
+            )}
 
             {!isSold && calculatedEmi && (
               <p className="text-xs text-muted-foreground">
@@ -292,22 +314,22 @@ const CarCard = ({
           <div className="flex flex-wrap gap-1 pt-1">
             {features.safety?.slice(0, 2).map((feature, i) => (
               <span key={`safety-${i}`} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                {feature}
+                {formatFeatureName(feature)}
               </span>
             ))}
             {features.comfort?.slice(0, 1).map((feature, i) => (
               <span key={`comfort-${i}`} className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-                {feature}
+                {formatFeatureName(feature)}
               </span>
             ))}
             {features.entertainment?.slice(0, 1).map((feature, i) => (
               <span key={`entertainment-${i}`} className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
-                {feature}
+                {formatFeatureName(feature)}
               </span>
             ))}
             {features.custom?.slice(0, 1).map((feature, i) => (
               <span key={`custom-${i}`} className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">
-                {feature}
+                {formatFeatureName(feature)}
               </span>
             ))}
           </div>
@@ -315,7 +337,7 @@ const CarCard = ({
 
         {/* SOLD NOTE */}
         {isSold && (
-          <p className="text-xs text-red-600 font-medium">
+          <p className="text-xs text-red-600 font-bold uppercase text-center">
             This car has already been sold
           </p>
         )}

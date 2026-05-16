@@ -14,7 +14,8 @@ import {
     User,
     FileCheck,
     Upload,
-    X
+    X,
+    AlertCircle
 } from "lucide-react";
 
 /* ================= TYPES ================= */
@@ -113,6 +114,7 @@ const AdminDocuments: React.FC = () => {
             console.log("Buyer docs response:", buyerRes.data);
 
             setSellerDocs(sellerRes.data || []);
+            console.log("Seller Docs:", sellerDocs);
             setBuyerDocs(buyerRes.data || []);
         } catch (err) {
             console.error("❌ Failed to load documents", err);
@@ -123,6 +125,31 @@ const AdminDocuments: React.FC = () => {
 
 
     };
+
+    /* ================= DOCUMENT EXISTS CHECK ================= */
+
+    const documentAlreadyExists = React.useMemo((): boolean => {
+        const trimmedLabel = imageLabel.trim().toLowerCase();
+        if (!trimmedLabel) return false;
+
+        if (uploadType === "seller" && selectedSellerDoc) {
+            return selectedSellerDoc.documents.some(
+                (doc) => doc.label.trim().toLowerCase() === trimmedLabel
+            );
+        }
+
+        if (uploadType === "buyer" && selectedBuyerDoc) {
+            const kyc = selectedBuyerDoc.buyerKyc;
+            if (!kyc) return false;
+            const matchesKyc =
+                ((trimmedLabel.includes("aadhaar") || trimmedLabel.includes("aadhar")) && (kyc.aadhaar?.length ?? 0) > 0) ||
+                (trimmedLabel.includes("pan") && (kyc.pan?.length ?? 0) > 0) ||
+                (trimmedLabel.includes("photo") && (kyc.photo?.length ?? 0) > 0);
+            return matchesKyc;
+        }
+
+        return false;
+    }, [imageLabel, uploadType, selectedSellerDoc, selectedBuyerDoc]);
 
     /* ================= UPLOAD FUNCTIONS ================= */
 
@@ -227,6 +254,76 @@ const AdminDocuments: React.FC = () => {
         }
     };
 
+    const deleteDocument = async (
+        sellRequestId: string,
+        label: string,
+        fileIndex: number
+    ) => {
+
+        // ===============================
+        // PASSWORD PROMPT
+        // ===============================
+        const password =
+            prompt(
+                "Enter admin password to delete document"
+            );
+
+        if (!password) return;
+
+        try {
+
+            console.log(
+                "🗑️ DELETE REQUEST:",
+                {
+                    sellRequestId,
+                    label,
+                    fileIndex,
+                }
+            );
+
+            // ===============================
+            // API CALL
+            // ===============================
+            const response =
+                await api.delete(
+                    `/admin/seller-documents/${sellRequestId}`,
+                    {
+                        data: {
+                            label,
+                            fileIndex,
+                            password,
+                        },
+                    }
+                );
+
+            console.log(
+                "✅ DELETE RESPONSE:",
+                response.data
+            );
+
+            // ===============================
+            // REFRESH DOCUMENTS
+            // ===============================
+            await fetchAll();
+
+            alert(
+                "Document deleted successfully"
+            );
+
+        } catch (err: any) {
+
+            console.error(
+                "❌ DELETE ERROR:",
+                err?.response?.data || err
+            );
+
+            alert(
+                err?.response?.data?.message ||
+                "Delete failed"
+            );
+        }
+    };
+
     const openUploadModal = (type: "seller" | "buyer", item: any) => {
         setUploadType(type);
         if (type === "seller") {
@@ -251,21 +348,32 @@ const AdminDocuments: React.FC = () => {
     /* ================= SEARCH FILTER ================= */
 
     const filterData = <T extends any>(data: T[]) => {
+        // ✅ NO SEARCH = RETURN EVERYTHING
         if (!search.trim()) return data;
 
-        const q = search.toLowerCase();
+        const q = search.toLowerCase().trim();
 
         return data.filter((item: any) => {
-            const searchableText = `
-        ${item.car?.brand ?? ""}
-        ${item.car?.model ?? ""}
-        ${item.car?.variant ?? ""}
-        ${item.car?.registrationNumber ?? ""}
-        ${item.seller?.name ?? ""}
-        ${item.seller?.phone ?? ""}
-        ${item.buyer?.name ?? ""}
-        ${item.buyer?.phone ?? ""}
-      `.toLowerCase();
+            const fields = [
+                item?.car?.brand,
+                item?.car?.model,
+                item?.car?.variant,
+                item?.car?.registrationNumber,
+
+                item?.seller?.name,
+                item?.seller?.phone,
+                item?.seller?.city,
+
+                item?.buyer?.name,
+                item?.buyer?.phone,
+                item?.buyer?.city,
+            ];
+
+            // ✅ REMOVE undefined/null safely
+            const searchableText = fields
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
 
             return searchableText.includes(q);
         });
@@ -434,7 +542,7 @@ const AdminDocuments: React.FC = () => {
             {activeTab === "seller" && (
                 <div className="space-y-6">
 
-                    {filterData(sellerDocs).length === 0 ? (
+                    {sellerDocs.length === 0 ? (
                         <div className="text-center py-16 bg-white rounded-2xl border border-dashed">
                             <FileText className="mx-auto text-gray-400 mb-3" size={36} />
                             <h3 className="text-lg font-medium">No documents found</h3>
@@ -522,56 +630,275 @@ const AdminDocuments: React.FC = () => {
                                             </button>
                                         </div>
 
-                                        {item.documents.map((doc, i) => (
+                                        {item.documents?.length > 0 ? (
+                                            item.documents.map((doc, i) => (
+                                                <div
+                                                    key={i}
+                                                    className="bg-white rounded-xl border p-3 space-y-3"
+                                                >
+                                                    {/* HEADER */}
+                                                    <div className="flex justify-between text-sm">
+                                                        <span className="font-medium text-gray-800">
+                                                            {doc.label || "Untitled Document"}
+                                                        </span>
+
+                                                        <span className="text-xs text-gray-400">
+                                                            {doc.fileUrls?.length || 0} files
+                                                        </span>
+                                                    </div>
+
+                                                    {/* IMAGES */}
+                                                    {doc.fileUrls?.length > 0 ? (
+                                                        <div
+                                                            className="
+            grid grid-cols-2 gap-3
+            sm:flex sm:overflow-x-auto sm:gap-3
+          "
+                                                        >
+                                                            {doc.fileUrls.map((url, idx) => {
+
+                                                                const isPdf =
+                                                                    url.toLowerCase().includes(".pdf") ||
+                                                                    url.toLowerCase().includes("/raw/upload/");
+
+                                                                return (
+                                                                    <div
+                                                                        key={idx}
+                                                                        className="
+        relative
+        group
+
+        rounded-2xl
+        overflow-hidden
+
+        border border-gray-200
+
+        bg-white
+
+        shadow-sm
+        hover:shadow-lg
+
+        transition-all
+        duration-300
+
+        min-w-[90px]
+    "
+                                                                    >
+
+                                                                        {/* DELETE BUTTON */}
+                                                                        <button
+                                                                            onClick={(e) => {
+
+                                                                                e.stopPropagation();
+
+                                                                                deleteDocument(
+                                                                                    item.sellRequestId,
+                                                                                    doc.label,
+                                                                                    idx
+                                                                                );
+                                                                            }}
+                                                                            className="
+            absolute
+            top-2
+            right-2
+            z-30
+
+            opacity-0
+            group-hover:opacity-100
+
+            flex
+            items-center
+            justify-center
+
+            w-6
+            h-6
+
+            rounded-full
+
+            bg-black/70
+            backdrop-blur-sm
+
+            text-white
+
+            hover:bg-red-500
+
+            transition-all
+            duration-200
+        "
+                                                                            title="Delete document"
+                                                                        >
+                                                                            <X size={12} />
+                                                                        </button>
+
+                                                                        {isPdf ? (
+
+                                                                            // ✅ PDF VIEW
+                                                                            <div
+                                                                                className="
+    flex flex-col
+    items-center
+    justify-center
+    w-full h-28
+    sm:h-20 sm:w-20
+    p-2
+    bg-gray-50
+  "
+                                                                            >
+
+                                                                                <FileText
+                                                                                    size={32}
+                                                                                    className="text-red-500"
+                                                                                />
+
+                                                                                <button
+                                                                                    onClick={async () => {
+                                                                                        try {
+
+                                                                                            const response =
+                                                                                                await fetch(url);
+
+                                                                                            const blob =
+                                                                                                await response.blob();
+
+                                                                                            const blobUrl =
+                                                                                                window.URL.createObjectURL(blob);
+
+                                                                                            const link =
+                                                                                                document.createElement("a");
+
+                                                                                            link.href = blobUrl;
+
+                                                                                            // ✅ ORIGINAL FILE NAME
+                                                                                            const fileName =
+                                                                                                decodeURIComponent(
+                                                                                                    url.split("/").pop() ||
+                                                                                                    "document.pdf"
+                                                                                                );
+
+                                                                                            link.download =
+                                                                                                fileName.endsWith(".pdf")
+                                                                                                    ? fileName
+                                                                                                    : `${fileName}.pdf`;
+
+                                                                                            document.body.appendChild(link);
+
+                                                                                            link.click();
+
+                                                                                            document.body.removeChild(link);
+
+                                                                                            window.URL.revokeObjectURL(blobUrl);
+
+                                                                                        } catch (error) {
+
+                                                                                            console.error(
+                                                                                                "Download failed",
+                                                                                                error
+                                                                                            );
+                                                                                        }
+                                                                                    }}
+                                                                                    className="
+    mt-2
+    text-[10px]
+    text-blue-600
+    underline
+    hover:text-blue-800
+  "
+                                                                                >
+                                                                                    Download PDF
+                                                                                </button>
+                                                                            </div>
+
+
+                                                                        ) : (
+
+                                                                            // ✅ IMAGE VIEW
+                                                                            <>
+                                                                                <img
+                                                                                    src={url}
+                                                                                    alt={doc.label}
+                                                                                    onClick={() =>
+                                                                                        window.open(url, "_blank")
+                                                                                    }
+                                                                                    className="
+      w-full
+      h-28
+
+      sm:h-24
+      sm:w-24
+
+      object-cover
+
+      cursor-pointer
+
+      transition-all
+      duration-300
+
+      group-hover:scale-105
+    "
+                                                                                />
+
+                                                                                <div
+                                                                                    className="
+    absolute inset-0
+    bg-black/0
+    hover:bg-black/20
+    transition
+    flex items-center justify-center
+    pointer-events-none
+  "
+                                                                                >
+                                                                                    <ExternalLink
+                                                                                        className="text-white opacity-0 hover:opacity-100"
+                                                                                        size={16}
+                                                                                    />
+                                                                                </div>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    ) : (
+                                                        <div
+                                                            className="
+            border border-dashed rounded-lg
+            p-5 text-center bg-gray-50
+          "
+                                                        >
+                                                            <p className="text-sm font-medium text-gray-500">
+                                                                No files uploaded
+                                                            </p>
+
+                                                            <p className="text-xs text-gray-400 mt-1">
+                                                                Vehicle exists but this document has no images
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))
+                                        ) : (
                                             <div
-                                                key={i}
-                                                className="bg-white rounded-xl border p-3 space-y-3"
+                                                className="
+      border border-dashed rounded-xl
+      p-8 text-center bg-gray-50
+    "
                                             >
-                                                <div className="flex justify-between text-sm">
-                                                    <span className="font-medium text-gray-800">
-                                                        {doc.label}
-                                                    </span>
-                                                    <span className="text-xs text-gray-400">
-                                                        {doc.fileUrls.length} files
-                                                    </span>
+                                                <div className="flex justify-center mb-3">
+                                                    <FileText
+                                                        className="text-gray-300"
+                                                        size={30}
+                                                    />
                                                 </div>
 
-                                                {/* IMAGES */}
-                                                <div
-                                                    className="
-                        grid grid-cols-2 gap-3
-                        sm:flex sm:overflow-x-auto sm:gap-3
-                      "
-                                                >
-                                                    {doc.fileUrls.map((url, idx) => (
-                                                        <div
-                                                            key={idx}
-                                                            onClick={() => window.open(url, "_blank")}
-                                                            className="
-                            relative
-                            rounded-lg
-                            overflow-hidden
-                            border
-                            cursor-pointer
-                          "
-                                                        >
-                                                            <img
-                                                                src={url}
-                                                                alt={doc.label}
-                                                                className="
-                              w-full h-28
-                              sm:h-20 sm:w-20
-                              object-cover
-                            "
-                                                            />
-                                                            <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition flex items-center justify-center">
-                                                                <ExternalLink className="text-white opacity-0 hover:opacity-100" size={16} />
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
+                                                <p className="text-sm font-medium text-gray-500">
+                                                    No seller documents uploaded
+                                                </p>
+
+                                                <p className="text-xs text-gray-400 mt-1">
+                                                    Vehicle record exists but seller documents are missing
+                                                </p>
                                             </div>
-                                        ))}
+                                        )}
 
                                     </div>
                                 </div>
@@ -801,6 +1128,16 @@ const AdminDocuments: React.FC = () => {
             "
                                     required
                                 />
+
+                                {/* ✅ DOCUMENT ALREADY EXISTS WARNING */}
+                                {documentAlreadyExists && (
+                                    <div className="flex items-center gap-1.5 mt-2">
+                                        <AlertCircle size={14} className="text-red-500 shrink-0" />
+                                        <p className="text-sm text-red-500">
+                                            Document already exists
+                                        </p>
+                                    </div>
+                                )}
                             </div>
 
                             {/* FILE INPUT */}
@@ -812,7 +1149,7 @@ const AdminDocuments: React.FC = () => {
                                 <input
                                     type="file"
                                     multiple
-                                    accept="image/*"
+                                    accept="image/*,.pdf"
                                     onChange={(e) => e.target.files && handleFileSelect(e.target.files)}
                                     className="
               w-full
@@ -844,26 +1181,59 @@ const AdminDocuments: React.FC = () => {
                 pr-1
               "
                                     >
-                                        {filePreviews.map((url, i) => (
-                                            <div
-                                                key={i}
-                                                className="relative group"
-                                                onClick={() => window.open(url, "_blank")}
-                                            >
-                                                <img
-                                                    src={url}
-                                                    alt={`Preview ${i + 1}`}
-                                                    className="
-                      w-full
-                      h-24
-                      object-cover
-                      rounded-xl
-                      border
-                      cursor-pointer
-                    "
-                                                />
-                                            </div>
-                                        ))}
+                                        {filePreviews.map((url, i) => {
+
+                                            const file = selectedFiles[i];
+
+                                            const isPdf =
+                                                file?.type === "application/pdf";
+
+                                            return (
+                                                <div
+                                                    key={i}
+                                                    className="relative group"
+                                                >
+
+                                                    {isPdf ? (
+
+                                                        <div
+                                                            className="
+            w-full h-24
+            rounded-xl border
+            bg-gray-100
+            flex flex-col
+            items-center
+            justify-center
+          "
+                                                        >
+                                                            <FileText
+                                                                size={30}
+                                                                className="text-red-500"
+                                                            />
+
+                                                            <p className="text-[10px] mt-1">
+                                                                PDF File
+                                                            </p>
+                                                        </div>
+
+                                                    ) : (
+
+                                                        <img
+                                                            src={url}
+                                                            alt={`Preview ${i + 1}`}
+                                                            className="
+            w-full
+            h-24
+            object-cover
+            rounded-xl
+            border
+            cursor-pointer
+          "
+                                                        />
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             )}

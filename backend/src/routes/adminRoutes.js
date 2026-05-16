@@ -6,6 +6,7 @@ const upload = require("../middleware/upload");
 const adminController = require("../controllers/adminController");
 const adminAuthController = require("../controllers/adminAuthController");
 const historyController = require("../controllers/historyController");
+const PurchasePayment = require("../models/PurchasePayment");
 
 // DEBUG LOGS (VERY IMPORTANT)
 // console.log("auth:", typeof auth);
@@ -33,6 +34,9 @@ router.post(
   adminAuthController.forgotPassword
 );
 
+
+
+
 // RESET PASSWORD
 router.post(
   "/reset-password/:token",
@@ -51,7 +55,37 @@ router.put("/approve/:id", auth, adminController.approveSellRequest);
 router.put("/reject/:id", auth, adminController.rejectSellRequest);
 
 // Update sell request (for approved requests)
-router.put("/sell-requests/:id", auth, upload.array("images", 10), adminController.updateSellRequest);
+router.put(
+  "/sell-requests/:id",
+  auth,
+  upload.array("images", 10),
+  adminController.updateSellRequest
+);
+
+router.put(
+  "/update-settlement/:id",
+  auth,
+  adminController.updateSettlement
+);
+
+// Purchase Car Payments
+router.post(
+  "/purchase-payments/:purchaseId",
+  auth,
+  adminController.addPurchasePayment
+);
+router.get(
+  "/purchase-payments/:purchaseId",
+  auth,
+  adminController.getPurchasePayments
+);
+
+// Get Purchase Payment Invoice
+router.get(
+  "/purchase-payments/:purchaseId/:paymentIndex",
+  auth,
+  adminController.getPurchasePaymentInvoice
+);
 
 // ================= OFFLINE SELLER =================
 router.post(
@@ -137,6 +171,11 @@ router.get(
   adminController.getFinalInvoice
 );
 
+router.get(
+  "/purchase/:id/final-invoice",
+  auth,
+  adminController.getPurchaseFinalInvoice
+);
 
 // ================= HISTORY =================
 router.get("/history", auth, historyController.getAllHistory);

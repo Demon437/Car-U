@@ -183,8 +183,15 @@ const CarDetails = () => {
     <>
       <Helmet>
         <title>
-          {`${car.brand ?? "Car"} ${car.variant ?? ""} | Buy Used Car`}
+          {`${car.brand ?? "Car"} ${car.variant ?? ""
+            } | Buy Used Car`}
         </title>
+
+        <meta
+          name="description"
+          content={`${car.brand} ${car.variant ?? ""
+            } available for sale`}
+        />
       </Helmet>
 
       <Navbar />
@@ -220,6 +227,26 @@ const CarDetails = () => {
                 {isSold ? "SOLD" : `₹${price?.toLocaleString() || "N/A"}`}
               </p>
             </div>
+            <div className="flex flex-wrap gap-2 mt-16">
+
+              <span className="px-3 py-1 rounded-full bg-green-100 text-green-700 text-sm font-medium">
+                Verified Car
+              </span>
+
+              <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-sm font-medium">
+                Single Owner
+              </span>
+
+              <span className="px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-sm font-medium">
+                Insurance Active
+              </span>
+
+              <span className="px-3 py-1 rounded-full bg-purple-100 text-purple-700 text-sm font-medium">
+                RC Available
+              </span>
+
+            </div>
+
 
             {/* SPECS */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -238,8 +265,6 @@ const CarDetails = () => {
               />
             </div>
 
-            {/* ACTIONS */}
-            {/* ACTIONS */}
             {/* ACTIONS */}
             <div className="flex flex-wrap gap-4">
 
@@ -291,12 +316,28 @@ const CarDetails = () => {
       )}
 
       {/* ================= CAR in 260 View ================= */}
-      <section className="min-h-[2vh] py-6 bg-gray-50 ">
-        <div className="container mx-auto px-6">
-          <h1 className="text-2xl font-bold">About Car</h1>
-          <p>{car.condition || "N/A"}</p>
-        </div>
-      </section>
+      <section className="py-10 bg-white border-t border-gray-100">
+  <div className="container mx-auto px-6 max-w-6xl">
+    {/* Section Header */}
+    <div className="mb-6">
+      <h2 className="text-3xl font-bold text-gray-900">About This Car</h2>
+      <p className="text-sm text-gray-500 mt-2 max-w-3xl leading-6">
+        Get a quick overview of this vehicle’s overall condition, maintenance
+        status, and any important notes provided by the seller. This helps you
+        understand the car better before making a decision.
+      </p>
+    </div>
+
+    {/* Content Card */}
+    <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 shadow-sm">
+      <p className="text-gray-700 leading-8 text-base whitespace-pre-line">
+        {car.condition?.trim()
+          ? car.condition
+          : "This vehicle has been carefully inspected and maintained. It is in good overall condition with all essential features functioning properly. Contact us for more details or to schedule a test drive."}
+      </p>
+    </div>
+  </div>
+</section>
 
       {/* ================= FEATURES ================= */}
       <section className="py-12 bg-gray-50">
@@ -341,7 +382,210 @@ const CarDetails = () => {
                 !car.features.custom?.length)) && (
                 <p className="text-gray-500">No features available</p>
               )}
-          </div>KM Driven
+          </div>
+
+          <div className="bg-gradient-to-r from-black to-gray-900 text-white rounded-2xl p-5">
+
+            <p className="text-sm text-gray-300">
+              Estimated EMI
+            </p>
+            <div
+              className="
+    bg-gradient-to-r
+    from-black
+    to-gray-900
+    text-white
+    rounded-3xl
+    p-6
+    shadow-xl
+    border border-white/10
+  "
+            >
+
+              {/* TOP */}
+              <div
+                className="
+      flex
+      items-start
+      justify-between
+      gap-4
+    "
+              >
+
+                <div>
+                  <p
+                    className="
+          text-sm
+          text-gray-300
+          uppercase
+          tracking-wide
+        "
+                  >
+                    Estimated EMI
+                  </p>
+
+                  <h3
+                    className="
+          text-4xl
+          font-bold
+          mt-2
+          leading-none
+        "
+                  >
+                    ₹
+                    {Math.round(
+                      price / 60
+                    ).toLocaleString()}
+
+                    <span
+                      className="
+            text-lg
+            font-normal
+            text-gray-300
+            ml-1
+          "
+                    >
+                      /month
+                    </span>
+                  </h3>
+                </div>
+
+                {/* BADGE */}
+                <div
+                  className="
+        px-3 py-1.5
+        rounded-full
+        bg-green-500/20
+        text-green-300
+        text-xs
+        font-semibold
+        border border-green-500/30
+      "
+                >
+                  Easy Finance
+                </div>
+              </div>
+
+              {/* INFO */}
+              <div
+                className="
+      mt-5
+      grid
+      grid-cols-2
+      gap-4
+    "
+              >
+
+                {/* DOWNPAYMENT */}
+                <div
+                  className="
+        rounded-2xl
+        bg-white/5
+        border border-white/10
+        p-4
+      "
+                >
+                  <p
+                    className="
+          text-xs
+          text-gray-400
+          uppercase
+        "
+                  >
+                    Down Payment
+                  </p>
+
+                  <h4
+                    className="
+          text-xl
+          font-bold
+          mt-1
+        "
+                  >
+                    ₹
+                    {Math.round(
+                      price * 0.2
+                    ).toLocaleString()}
+                  </h4>
+
+                  <p
+                    className="
+          text-xs
+          text-gray-500
+          mt-1
+        "
+                  >
+                    Approx 20% upfront
+                  </p>
+                </div>
+
+                {/* TENURE */}
+                <div
+                  className="
+        rounded-2xl
+        bg-white/5
+        border border-white/10
+        p-4
+      "
+                >
+                  <p
+                    className="
+          text-xs
+          text-gray-400
+          uppercase
+        "
+                  >
+                    Loan Tenure
+                  </p>
+
+                  <h4
+                    className="
+          text-xl
+          font-bold
+          mt-1
+        "
+                  >
+                    5 Years
+                  </h4>
+
+                  <p
+                    className="
+          text-xs
+          text-gray-500
+          mt-1
+        "
+                  >
+                    Flexible EMI plans
+                  </p>
+                </div>
+              </div>
+
+              {/* FOOTER */}
+              <p
+                className="
+      text-xs
+      text-gray-500
+      mt-5
+      leading-5
+    "
+              >
+                EMI is indicative and may vary
+                based on bank approval,
+                interest rate, and eligibility.
+              </p>
+            </div>
+            <h3 className="text-3xl font-bold mt-1">
+              ₹{Math.round(price / 60).toLocaleString()}
+              <span className="text-base font-normal text-gray-300">
+                /month
+              </span>
+            </h3>
+
+            <p className="text-sm text-gray-400 mt-2">
+              Approx for 5 years loan tenure
+            </p>
+
+          </div>
 
 
         </div>

@@ -9,24 +9,71 @@ const WHATSAPP_NUMBER = "9301942456";
 
 const openWhatsAppWithInvoice = ({
   buyerName,
+  phone,
+  label = "invoice",
   invoiceUrl,
-  label,
 }) => {
-  const msg = `Hi ${buyerName},
+  if (!phone) {
+    alert("Buyer phone number not found");
+    return;
+  }
 
-Your ${label} is ready ✅
+  // Remove all non-numeric characters
+  const cleanPhone = phone.replace(/\D/g, "");
 
-Invoice:
-${invoiceUrl}
+  // Convert label to Title Case
+  const formattedLabel = label
+    .split(" ")
+    .map(
+      (word) =>
+        word.charAt(0).toUpperCase() +
+        word.slice(1)
+    )
+    .join(" ");
 
-Thank you 🙏
-United Motors`;
+  // IMPORTANT:
+  // Replace localhost URL with your public domain URL.
+  // WhatsApp recipients cannot open localhost links.
+  const publicInvoiceUrl = invoiceUrl
+    .replace(
+      "http://localhost:8081",
+      "https://unitedmotorsindia.com"
+    )
+    .replace(
+      "http://127.0.0.1:8081",
+      "https://unitedmotorsindia.com"
+    );
 
-  const waUrl = `https://wa.me/91${WHATSAPP_NUMBER}?text=${encodeURIComponent(
-    msg
-  )}`;
+  const message = `🚗 United Cars
 
-  window.open(waUrl, "_blank");
+Hi ${buyerName || "Customer"},
+
+Your ${formattedLabel} is ready.
+
+Click the link below to view your ${formattedLabel}:
+
+${publicInvoiceUrl}
+
+Thank you for your purchase.`;
+
+  window.open(
+    `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(
+      message
+    )}`,
+    "_blank"
+  );
+};
+
+const formatLabel = (value: string) => {
+  const labels: Record<string, string> = {
+    CASH: "Cash",
+    UPI: "UPI",
+    BANK: "Bank Transfer",
+    LOAN: "Loan",
+    BLACK: "Unrecorded Payments",
+  };
+
+  return labels[value] || value;
 };
 
 
@@ -47,14 +94,36 @@ const SaleDetails = () => {
   if (!data) return null;
 
   const { sale, car, payments = [] } = data;
+  console.log("Fetched Sale Details:", data);
 
+  // ================= ACTUAL RECEIVED AMOUNTS FROM PAYMENT TIMELINE =================
+
+  // White money received (CASH + UPI + BANK)
+  const whitePaid = payments
+    .filter((p) =>
+      ["CASH", "UPI", "BANK"].includes(
+        p.adjustAgainst || p.paymentType
+      )
+    )
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+  // Loan received
   const loanPaid = payments
-    .filter((p) => p.paymentType === "LOAN")
-    .reduce((s, p) => s + p.amount, 0);
+    .filter(
+      (p) =>
+        (p.adjustAgainst || p.paymentType) ===
+        "LOAN"
+    )
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
-  const normalPaid = payments
-    .filter((p) => p.paymentType !== "LOAN")
-    .reduce((s, p) => s + p.amount, 0);
+  // Unrecorded cash received
+  const blackPaid = payments
+    .filter(
+      (p) =>
+        (p.adjustAgainst || p.paymentType) ===
+        "BLACK"
+    )
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
   const percent = Math.round(
     (sale.paymentSummary.paidAmount /
@@ -114,30 +183,91 @@ const SaleDetails = () => {
       </div>
 
       {/* ================= PAYMENT BREAKUP ================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* WHITE MONEY */}
         <div className="bg-white rounded-xl p-4 border">
-          <p className="text-xs text-gray-500 mb-1">
-            Cash / UPI / Bank
+          <p className="text-xs text-gray-500 mb-3 font-medium">
+            Recorded Payment
           </p>
-          <p className="text-xl font-bold text-blue-600">
-            ₹{normalPaid.toLocaleString()}
-          </p>
+
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Total Amount</span>
+              <span className="font-semibold">
+                ₹
+                {(
+                  (car.payment?.cashAmount || 0) +
+                  (car.payment?.upiAmount || 0) +
+                  (car.payment?.bankAmount || 0)
+                ).toLocaleString()}
+              </span>
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-gray-600">Received</span>
+              <span className="font-semibold text-blue-600">
+                ₹
+                {whitePaid.toLocaleString()}
+              </span>
+            </div>
+          </div>
         </div>
 
+        {/* LOAN DISBURSED */}
         <div className="bg-white rounded-xl p-4 border">
-          <p className="text-xs text-gray-500 mb-1">
+          <p className="text-xs text-gray-500 mb-3 font-medium">
             Loan Disbursed
           </p>
-          <p className="text-xl font-bold text-purple-600">
-            ₹{loanPaid.toLocaleString()}
+
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Total Amount</span>
+              <span className="font-semibold">
+                ₹
+                {(car.payment?.loanAmount || 0).toLocaleString()}
+              </span>
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-gray-600">Received</span>
+              <span className="font-semibold text-purple-600">
+                ₹
+                {loanPaid.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* UNRECORDED CASH */}
+        <div className="bg-white rounded-xl p-4 border">
+          <p className="text-xs text-gray-500 mb-3 font-medium">
+            Unrecorded Payment
           </p>
+
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Total Amount</span>
+              <span className="font-semibold">
+                ₹
+                {(car.payment?.blackAmount || 0).toLocaleString()}
+              </span>
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-gray-600">Received</span>
+              <span className="font-semibold text-orange-600">
+                ₹
+                {blackPaid.toLocaleString()}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* ================= CAR & BUYER ================= */}
       <div className="bg-white rounded-xl p-4 border space-y-1 text-sm">
         <p>
-          <b>Car:</b> {car.brand} {car.variant || ""}
+          <b>Car:</b> {car.car?.model} {car.variant || ""}
         </p>
         <p>
           <b>Buyer:</b> {car.buyer?.name} ({car.buyer?.phone})
@@ -184,6 +314,7 @@ const SaleDetails = () => {
             onClick={() =>
               openWhatsAppWithInvoice({
                 buyerName: car.buyer?.name,
+                phone: car.buyer?.phone,
                 label: "final invoice",
                 invoiceUrl: `${window.location.origin}/admin/sales/${sale._id}/final-invoice`,
               })
@@ -198,62 +329,164 @@ const SaleDetails = () => {
 
       {/* ================= PAYMENT TIMELINE ================= */}
       <div className="bg-white rounded-xl p-4 border">
-        <h2 className="font-semibold mb-3">Payment Timeline</h2>
+        <h2 className="font-semibold mb-4">
+          Payment Timeline
+        </h2>
 
-        {payments.map((p) => (
-          <div
-            key={p._id}
-            className="flex justify-between items-center py-3 border-b last:border-none"
-          >
-            <div>
-              <p className="font-semibold">
-                ₹{p.amount.toLocaleString()}
-              </p>
-              <p className="text-xs text-gray-500">
-                {p.paymentType} •{" "}
-                {new Date(p.invoiceDate).toLocaleDateString()}
-              </p>
-            </div>
-
-            <div className="flex gap-2">
-              {/* OPEN INVOICE */}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  window.open(
-                    `/admin/payments/${p._id}/invoice`,
-                    "_blank"
-                  )
-                }
+        {payments.length === 0 ? (
+          <p className="text-sm text-gray-500">
+            No payments recorded yet.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {console.log("Payments to display:", payments)}
+            {payments.map((p) => (
+              <div
+                key={p._id}
+                className="border rounded-xl p-4 bg-gray-50"
               >
-                Invoice
-              </Button>
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                  {/* LEFT SIDE */}
+                  <div className="space-y-2 flex-1">
+                    {/* Amount */}
+                    <div>
+                      <p className="text-2xl font-bold text-gray-900">
+                        ₹{Number(p.amount || 0).toLocaleString()}
+                      </p>
 
-              {/* WHATSAPP PAYMENT RECEIPT */}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  openWhatsAppWithInvoice({
-                    buyerName: car.buyer?.name,
-                    label: "payment receipt",
-                    invoiceUrl: `${window.location.origin}/admin/payments/${p._id}/invoice`,
-                  })
-                }
-              >
-                WhatsApp
-              </Button>
-            </div>
-                  
+                      <p className="text-xs text-gray-500">
+                        {new Date(
+                          p.invoiceDate || p.createdAt
+                        ).toLocaleDateString()}
+                      </p>
+                    </div>
+
+                    {/* Payment Details */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-gray-500">
+                          Adjusted Against:
+                        </span>{" "}
+                        <span className="font-medium text-blue-700">
+                          {formatLabel(
+                            p.adjustAgainst || p.paymentType
+                          )}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-gray-500">
+                          Payment Mode:
+                        </span>{" "}
+                        <span className="font-medium text-green-700">
+                          {formatLabel(
+                            p.paymentMode || p.paymentType
+                          )}
+                        </span>
+                      </div>
+
+                      {p.transactionId && (
+                        <div className="sm:col-span-2">
+                          <span className="text-gray-500">
+                            Transaction ID:
+                          </span>{" "}
+                          <span className="font-medium">
+                            {p.transactionId}
+                          </span>
+                        </div>
+                      )}
+
+                      {p.financeCompany && (
+                        <div className="sm:col-span-2">
+                          <span className="text-gray-500">
+                            Finance Company:
+                          </span>{" "}
+                          <span className="font-medium">
+                            {p.financeCompany}
+                          </span>
+                        </div>
+                      )}
+
+                      {p.note && (
+                        <div className="sm:col-span-2">
+                          <span className="text-gray-500">
+                            Note:
+                          </span>{" "}
+                          <span className="font-medium">
+                            {p.note}
+                          </span>
+                        </div>
+                      )}
+
+                      <div>
+                        <span className="text-gray-500">
+                          Paid Till Now:
+                        </span>{" "}
+                        <span className="font-semibold text-green-600">
+                          ₹
+                          {Number(
+                            p.paidTillNow || 0
+                          ).toLocaleString()}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-gray-500">
+                          Remaining:
+                        </span>{" "}
+                        <span className="font-semibold text-red-600">
+                          ₹
+                          {Number(
+                            p.remainingAfterPayment || 0
+                          ).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* RIGHT SIDE ACTIONS */}
+                  <div className="flex gap-2 flex-wrap md:flex-col">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        window.open(
+                          `/admin/payments/${p._id}/invoice`,
+                          "_blank"
+                        )
+                      }
+                    >
+                      Invoice
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        openWhatsAppWithInvoice({
+                          buyerName: car.buyer?.name,
+                          phone: car.buyer?.phone,
+                          label: "payment receipt",
+                          invoiceUrl: `${window.location.origin}/admin/payments/${p._id}/invoice`,
+                        })
+                      }
+                    >
+                      WhatsApp
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
 
       {/* ================= MODAL ================= */}
       {showPaymentModal && (
         <AddPaymentModal
           saleId={sale._id}
+          sale={car}
+          payments={payments}
           remaining={sale.paymentSummary.remainingAmount}
           onClose={() => setShowPaymentModal(false)}
           onSuccess={() => window.location.reload()}

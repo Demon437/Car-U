@@ -10,7 +10,7 @@ const Loan = require("../models/Loan");
 const PDFDocument = require("pdfkit");
 const cloudinary = require("../config/cloudinary");
 const { Readable } = require("stream");
-
+const PurchasePayment = require("../models/PurchasePayment");
 
 // ===============================
 // GET /api/admin/sell-requests
@@ -30,19 +30,37 @@ exports.getPendingSellRequests = async (req, res) => {
 exports.approveSellRequest = async (req, res) => {
   try {
     const { id } = req.params;
+
     const {
       adminSellingPrice,
       adminExpenses = [],
       sellerDocuments = [],
+      sellerSettlement,
       features,
     } = req.body;
+
+    console.log(
+      "🔥 sellerSettlement =>",
+      sellerSettlement
+    );
+
+    console.log(
+      "🔥 CASH =>",
+      sellerSettlement?.cashPayment
+    );
+
+    const parsedSellerSettlement =
+      typeof sellerSettlement === "string"
+        ? JSON.parse(sellerSettlement)
+        : sellerSettlement || {};
 
     const request = await SellRequest.findById(id);
 
     if (!request) {
-      return res.status(404).json({ message: "Sell request not found" });
+      return res.status(404).json({
+        message: "Sell request not found",
+      });
     }
-
     // 🔥 DEBUG (IMPORTANT)
     console.log("🚨 APPROVE TIME VIDEOS 👉", request.car?.videos);
     console.log("🚨 APPROVE TIME IMAGES 👉", request.car?.images);
@@ -96,24 +114,155 @@ exports.approveSellRequest = async (req, res) => {
       features || request.car?.features || {}
     );
 
+    /* ================================
+       UPDATE SELLER SETTLEMENT
+    ================================= */
+
+
+    request.sellerSettlement = parsedSellerSettlement;
+
+
     request.status = "APPROVED";
     request.approvedAt = new Date();
 
+    /* ================================
+       ADD INITIAL PAYMENTS TO REQUEST
+    ================================ */
+    request.purchasePayments = request.purchasePayments || [];
+
+    // CASH PAYMENT ENTRY
+    if (
+      parsedSellerSettlement?.cashPayment?.amount > 0
+    ) {
+      request.purchasePayments.push({
+        amount: Number(
+          parsedSellerSettlement.cashPayment.amount
+        ) || 0,
+        paymentType: "CASH",
+        paymentDate:
+          parsedSellerSettlement.cashPayment
+            ?.paymentDate || new Date(),
+        note:
+          parsedSellerSettlement.cashPayment
+            ?.notes || "",
+      });
+    }
+
+    // ONLINE PAYMENT ENTRY
+    if (
+      parsedSellerSettlement?.onlinePayment?.amount > 0
+    ) {
+      request.purchasePayments.push({
+        amount: Number(
+          parsedSellerSettlement.onlinePayment.amount
+        ) || 0,
+        paymentType:
+          parsedSellerSettlement.onlinePayment
+            ?.paymentMode || "ONLINE",
+        paymentDate:
+          parsedSellerSettlement.onlinePayment
+            ?.paymentDate || new Date(),
+        note:
+          parsedSellerSettlement.onlinePayment
+            ?.notes || "",
+      });
+    }
+
+    /* ================================
+       UPDATE SELLER SETTLEMENT TOTALS
+    ================================ */
+    const totalPurchaseAmount = request.sellerPrice || 0;
+    const totalPaidAmount = request.purchasePayments.reduce(
+      (sum, p) => sum + (p.amount || 0),
+      0
+    );
+    const dueAmount = Math.max(
+      0,
+      totalPurchaseAmount - totalPaidAmount
+    );
+
+    request.sellerSettlement = {
+      ...request.sellerSettlement,
+      totalPurchaseAmount,
+      totalPaidAmount,
+      dueAmount,
+    };
+
     await request.save();
+
+    /* ================================
+       CREATE INITIAL PAYMENT TIMELINE (PurchasePayment Collection)
+    ================================ */
+
+    // CASH PAYMENT ENTRY
+    if (
+      parsedSellerSettlement?.cashPayment?.amount > 0
+    ) {
+      await PurchasePayment.create({
+        purchaseId: request._id,
+
+        amount:
+          Number(
+            sellerSettlement.cashPayment.amount
+          ) || 0,
+
+        paymentType: "CASH",
+
+        paymentDate:
+          sellerSettlement.cashPayment
+            ?.paymentDate || new Date(),
+
+        note:
+          sellerSettlement.cashPayment
+            ?.notes || "",
+      });
+    }
+
+    // ONLINE PAYMENT ENTRY
+    if (
+      sellerSettlement?.onlinePayment?.amount > 0
+    ) {
+      await PurchasePayment.create({
+        purchaseId: request._id,
+
+        amount:
+          Number(
+            sellerSettlement.onlinePayment.amount
+          ) || 0,
+
+        paymentType:
+          sellerSettlement.onlinePayment
+            ?.paymentMode || "ONLINE",
+
+        paymentDate:
+          sellerSettlement.onlinePayment
+            ?.paymentDate || new Date(),
+
+        note:
+          sellerSettlement.onlinePayment
+            ?.notes || "",
+      });
+    }
+
 
     /* ================================
        CREATE LIVE CAR (🔥 FIXED)
     ================================= */
     const car = await Car.create({
       sellRequestId: request._id,
+
       source: request.source,
 
       seller: request.seller,
 
       adminExpenses: request.adminExpenses || [],
+
       sellerDocuments: request.sellerDocuments || [],
 
-      // 🔥 IMPORTANT FIX START
+      sellerSettlement: request.sellerSettlement || {},
+
+      extraAdminExpenses: request.extraAdminExpenses || [],
+
       car: {
         ...request.car,
         year: request.car?.year || req.body.year,
@@ -124,9 +273,8 @@ exports.approveSellRequest = async (req, res) => {
 
         videos: Array.isArray(request.car?.videos)
           ? request.car.videos
-          : [], // ✅ ensures videos never lost
+          : [],
       },
-      // 🔥 IMPORTANT FIX END
 
       sellerPrice: request.sellerPrice,
       adminSellingPrice: request.adminSellingPrice,
@@ -135,7 +283,6 @@ exports.approveSellRequest = async (req, res) => {
 
       status: "LIVE",
     });
-
     console.log("✅ Car created with videos 👉", car.car?.videos);
 
     return res.status(200).json({
@@ -145,11 +292,137 @@ exports.approveSellRequest = async (req, res) => {
       sellRequestId: request._id,
     });
   } catch (error) {
-    console.error("❌ approveSellRequest ERROR:", error);
-    return res.status(500).json({ message: "Server error" });
+    console.error("❌ approveSellRequest ERROR:", error.message);
+    console.error("❌ Full Error Stack:", error);
+
+    // More detailed error message for debugging
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+      details: error.errors ? Object.keys(error.errors).map(key => `${key}: ${error.errors[key].message}`) : null
+    });
   }
 };
 
+
+
+exports.updateSettlement = async (req, res) => {
+  console.log("🔥 UPDATE SETTLEMENT API HIT");
+  console.log("BODY 👉", req.body);
+  try {
+    const { id } = req.params;
+
+    const { sellerSettlement } = req.body;
+
+    const request = await SellRequest.findById(id);
+
+    if (!request) {
+      return res.status(404).json({
+        message: "Sell request not found",
+      });
+    }
+
+    /* ================================
+       UPDATE SELLER SETTLEMENT
+    ================================= */
+
+    if (sellerSettlement) {
+      request.sellerSettlement = {
+        onlinePayment: {
+          paymentMode:
+            sellerSettlement.onlinePayment
+              ?.paymentMode || "",
+
+          bankName:
+            sellerSettlement.onlinePayment
+              ?.bankName || "",
+
+          transactionId:
+            sellerSettlement.onlinePayment
+              ?.transactionId || "",
+
+          amount:
+            Number(
+              sellerSettlement.onlinePayment
+                ?.amount
+            ) || 0,
+
+          paymentDate:
+            sellerSettlement.onlinePayment
+              ?.paymentDate || null,
+
+          notes:
+            sellerSettlement.onlinePayment
+              ?.notes || "",
+        },
+
+        cashPayment: {
+          amount:
+            Number(
+              sellerSettlement.cashPayment
+                ?.amount
+            ) || 0,
+
+          receivedBy:
+            sellerSettlement.cashPayment
+              ?.receivedBy || "",
+
+          paymentDate:
+            sellerSettlement.cashPayment
+              ?.paymentDate || null,
+
+          notes:
+            sellerSettlement.cashPayment
+              ?.notes || "",
+        },
+
+        totalPurchaseAmount:
+          Number(
+            sellerSettlement.totalPurchaseAmount
+          ) || 0,
+
+        totalPaidAmount:
+          Number(
+            sellerSettlement.totalPaidAmount
+          ) || 0,
+
+        dueAmount:
+          Number(
+            sellerSettlement.dueAmount
+          ) || 0,
+      };
+    }
+
+    await request.save();
+
+    await Car.updateOne(
+      { sellRequestId: request._id },
+      {
+        $set: {
+          sellerSettlement:
+            request.sellerSettlement,
+        },
+      }
+    );
+
+    return res.status(200).json({
+      message:
+        "Settlement updated successfully",
+      sellerSettlement:
+        request.sellerSettlement,
+    });
+
+  } catch (error) {
+    console.error(
+      "❌ updateSettlement ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
 
 // ===============================
 // HELPER: Normalize Features
@@ -176,7 +449,7 @@ exports.addOfflineCar = async (req, res) => {
   try {
 
 
-    const { seller, car, rcDetails, sellerPrice, adminSellingPrice } = req.body;
+    const { seller, car, rcDetails, sellerPrice, adminSellingPrice, sellerSettlement } = req.body;
 
     console.log("Body of request:", req.body);
 
@@ -207,6 +480,9 @@ exports.addOfflineCar = async (req, res) => {
         parsedCar.specifications = {};
       }
     }
+
+
+
 
     // ================= ADMIN EXPENSES =================
     let adminExpenses = [];
@@ -246,6 +522,24 @@ exports.addOfflineCar = async (req, res) => {
       "✅ FINAL SELLER DOCS:",
       sellerDocuments
     );
+
+
+    // ================= SELLER SETTLEMENT =================
+    let parsedSellerSettlement = {};
+
+    if (req.body.sellerSettlement) {
+      try {
+        parsedSellerSettlement = JSON.parse(
+          req.body.sellerSettlement,
+          console.log("🔥 Parsed sellerSettlement:", parsedSellerSettlement)
+
+        );
+
+      } catch (err) {
+        console.log("❌ Invalid sellerSettlement JSON");
+      }
+    }
+
 
     // ================= VALIDATION =================
     if (!seller?.name || !seller?.phone || !seller?.city) {
@@ -312,6 +606,7 @@ exports.addOfflineCar = async (req, res) => {
     console.log("🔥 FINAL parsedCar 👉", parsedCar);
 
     const sellRequest = await SellRequest.create({
+      sellerSettlement: parsedSellerSettlement,
       source: "OFFLINE",
       seller,
       car: {
@@ -338,10 +633,133 @@ exports.addOfflineCar = async (req, res) => {
       status: "APPROVED",
     });
 
+    /* ================================
+       ADD INITIAL PAYMENTS TO REQUEST (OFFLINE CAR)
+    ================================ */
+    let parsedOfflineSettlement = {};
+    if (typeof parsedSellerSettlement === "string") {
+      try {
+        parsedOfflineSettlement = JSON.parse(parsedSellerSettlement);
+      } catch {
+        parsedOfflineSettlement = parsedSellerSettlement || {};
+      }
+    } else {
+      parsedOfflineSettlement = parsedSellerSettlement || {};
+    }
+
+    sellRequest.purchasePayments = sellRequest.purchasePayments || [];
+
+    // CASH PAYMENT ENTRY
+    if (
+      parsedOfflineSettlement?.cashPayment?.amount > 0
+    ) {
+      sellRequest.purchasePayments.push({
+        amount: Number(
+          parsedOfflineSettlement.cashPayment.amount
+        ) || 0,
+        paymentType: "CASH",
+        paymentDate:
+          parsedOfflineSettlement.cashPayment
+            ?.paymentDate || new Date(),
+        note:
+          parsedOfflineSettlement.cashPayment
+            ?.notes || "",
+      });
+    }
+
+    // ONLINE PAYMENT ENTRY
+    if (
+      parsedOfflineSettlement?.onlinePayment?.amount > 0
+    ) {
+      sellRequest.purchasePayments.push({
+        amount: Number(
+          parsedOfflineSettlement.onlinePayment.amount
+        ) || 0,
+        paymentType:
+          parsedOfflineSettlement.onlinePayment
+            ?.paymentMode || "ONLINE",
+        paymentDate:
+          parsedOfflineSettlement.onlinePayment
+            ?.paymentDate || new Date(),
+        note:
+          parsedOfflineSettlement.onlinePayment
+            ?.notes || "",
+      });
+    }
+
+    /* ================================
+       UPDATE SELLER SETTLEMENT TOTALS (OFFLINE CAR)
+    ================================ */
+    const offlineTotalPurchase = Number(sellerPrice) || 0;
+    const offlineTotalPaid = sellRequest.purchasePayments.reduce(
+      (sum, p) => sum + (p.amount || 0),
+      0
+    );
+    const offlineDueAmount = Math.max(
+      0,
+      offlineTotalPurchase - offlineTotalPaid
+    );
+
+    sellRequest.sellerSettlement = {
+      ...sellRequest.sellerSettlement,
+      totalPurchaseAmount: offlineTotalPurchase,
+      totalPaidAmount: offlineTotalPaid,
+      dueAmount: offlineDueAmount,
+    };
+
+    await sellRequest.save();
+
+    /* ================================
+       CREATE INITIAL PAYMENT TIMELINE (PurchasePayment Collection)
+    ================================ */
+
+    // CASH PAYMENT ENTRY
+    if (
+      parsedOfflineSettlement?.cashPayment?.amount > 0
+    ) {
+      await PurchasePayment.create({
+        purchaseId: sellRequest._id,
+        amount:
+          Number(
+            parsedOfflineSettlement.cashPayment.amount
+          ) || 0,
+        paymentType: "CASH",
+        paymentDate:
+          parsedOfflineSettlement.cashPayment
+            ?.paymentDate || new Date(),
+        note:
+          parsedOfflineSettlement.cashPayment
+            ?.notes || "",
+      });
+    }
+
+    // ONLINE PAYMENT ENTRY
+    if (
+      parsedOfflineSettlement?.onlinePayment?.amount > 0
+    ) {
+      await PurchasePayment.create({
+        purchaseId: sellRequest._id,
+        amount:
+          Number(
+            parsedOfflineSettlement.onlinePayment.amount
+          ) || 0,
+        paymentType:
+          parsedOfflineSettlement.onlinePayment
+            ?.paymentMode || "ONLINE",
+        paymentDate:
+          parsedOfflineSettlement.onlinePayment
+            ?.paymentDate || new Date(),
+        note:
+          parsedOfflineSettlement.onlinePayment
+            ?.notes || "",
+      });
+    }
+
     // ================= CREATE LIVE CAR =================
     console.log("SellRequest.car before creating Car:", sellRequest.car);
 
     const liveCar = await Car.create({
+      sellerSettlement: sellRequest.sellerSettlement,
       sellRequestId: sellRequest._id,
 
       source: "OFFLINE",
@@ -461,20 +879,13 @@ exports.getDashboardStats = async (req, res) => {
 
 
 // ================= SOLD =================
+// ================= SOLD =================
 exports.markCarAsSold = async (req, res) => {
   try {
     /* ================= EXTRACT DATA ================= */
     const buyerDetails = req.body.buyerDetails || {};
     const payment = req.body.payment || {};
-
-    const {
-      type: paymentType = "CASH", // CASH | UPI | BANK | LOAN
-      cashPaid = 0,
-      cashPaymentMode,
-      loanTotal = 0,
-      loanPaidNow = 0,
-      financeCompany = "",
-    } = payment;
+    const sale = req.body.sale || {};
 
     const {
       buyerName,
@@ -495,9 +906,6 @@ exports.markCarAsSold = async (req, res) => {
     }
 
     const soldPriceNum = Number(soldPrice);
-    const cashPaidNum = Number(cashPaid);
-    const loanTotalNum = Number(loanTotal);
-    const loanPaidNowNum = Number(loanPaidNow);
 
     if (Number.isNaN(soldPriceNum) || soldPriceNum <= 0) {
       return res.status(400).json({
@@ -505,9 +913,47 @@ exports.markCarAsSold = async (req, res) => {
       });
     }
 
-    /* ================= PAYMENT LOGIC ================= */
-    const totalPaidNow = cashPaidNum + loanPaidNowNum;
+    /* ================= PAYMENT DATA ================= */
+    const paymentData = {
+      type: payment.type || "CASH",
+
+      // Total Amounts
+      cashAmount: Number(payment.cashAmount || 0),
+      upiAmount: Number(payment.upiAmount || 0),
+      bankAmount: Number(payment.bankAmount || 0),
+      loanAmount: Number(payment.loanAmount || 0),
+      blackAmount: Number(payment.blackAmount || 0),
+
+      // Paid Amounts
+      cashPaidAmount: Number(payment.cashPaidAmount || 0),
+      upiPaidAmount: Number(payment.upiPaidAmount || 0),
+      bankPaidAmount: Number(payment.bankPaidAmount || 0),
+      loanPaidAmount: Number(payment.loanPaidAmount || 0),
+      blackPaidAmount: Number(payment.blackPaidAmount || 0),
+
+      // Additional Info
+      financeCompany: payment.financeCompany || "",
+      upiTransactionId: payment.upiTransactionId || "",
+      bankTransactionId: payment.bankTransactionId || "",
+      notes: payment.notes || "",
+    };
+
+    /* ================= CALCULATIONS ================= */
+    const totalPaidNow =
+      paymentData.cashPaidAmount +
+      paymentData.upiPaidAmount +
+      paymentData.bankPaidAmount +
+      paymentData.loanPaidAmount +
+      paymentData.blackPaidAmount;
+
     const remainingAmount = soldPriceNum - totalPaidNow;
+
+    /* ================= PAYMENT VALIDATION ================= */
+    if (totalPaidNow <= 0) {
+      return res.status(400).json({
+        message: "At least one paid amount is required",
+      });
+    }
 
     if (totalPaidNow > soldPriceNum) {
       return res.status(400).json({
@@ -515,19 +961,14 @@ exports.markCarAsSold = async (req, res) => {
       });
     }
 
-    // 🔒 Strict payment rules
-    if (paymentType === "LOAN") {
-      if (loanTotalNum <= 0) {
-        return res.status(400).json({
-          message: "Loan total amount is required for loan payment",
-        });
-      }
-    } else {
-      if (cashPaidNum <= 0) {
-        return res.status(400).json({
-          message: "Paid amount is required",
-        });
-      }
+    if (
+      paymentData.loanAmount > 0 &&
+      !paymentData.financeCompany
+    ) {
+      return res.status(400).json({
+        message:
+          "Finance company is required when loan amount is entered",
+      });
     }
 
     /* ================= FILE VALIDATION ================= */
@@ -541,7 +982,10 @@ exports.markCarAsSold = async (req, res) => {
       });
     }
 
-    if (!req.files?.form29?.length || !req.files?.form30?.length) {
+    if (
+      !req.files?.form29?.length ||
+      !req.files?.form30?.length
+    ) {
       return res.status(400).json({
         message: "Form 29 and Form 30 are required",
       });
@@ -550,12 +994,16 @@ exports.markCarAsSold = async (req, res) => {
     /* ================= FIND CAR ================= */
     const car = await Car.findById(carId);
     if (!car) {
-      return res.status(404).json({ message: "Car not found" });
+      return res.status(404).json({
+        message: "Car not found",
+      });
     }
 
     /* ================= UPDATE CAR ================= */
     car.status = "SOLD";
-    car.soldAt = saleDate ? new Date(saleDate) : new Date();
+    car.soldAt = saleDate
+      ? new Date(saleDate)
+      : new Date();
 
     car.buyer = {
       name: buyerName,
@@ -567,18 +1015,9 @@ exports.markCarAsSold = async (req, res) => {
     car.buyerPrice = soldPriceNum;
 
     /* ================= PAYMENT INFO ================= */
-    car.payment = {
-      type: paymentType,
-      cashPaid: cashPaidNum,
-      cashPaymentMode:
-        paymentType === "LOAN"
-          ? cashPaymentMode || "CASH"
-          : paymentType,
-      loanTotal: loanTotalNum,
-      loanPaidNow: loanPaidNowNum,
-      financeCompany: financeCompany || "",
-    };
+    car.payment = paymentData;
 
+    /* ================= SALE SUMMARY ================= */
     car.sale = {
       totalAmount: soldPriceNum,
       paidAmount: totalPaidNow,
@@ -587,30 +1026,41 @@ exports.markCarAsSold = async (req, res) => {
 
     /* ================= SAVE FILES ================= */
     car.buyerKyc = {
-      aadhaar: req.files.buyerAadhaarPhoto.map(f => f.path),
-      pan: req.files.buyerPANPhoto.map(f => f.path),
-      photo: req.files.buyerPhoto.map(f => f.path),
+      aadhaar: req.files.buyerAadhaarPhoto.map(
+        (f) => f.path
+      ),
+      pan: req.files.buyerPANPhoto.map(
+        (f) => f.path
+      ),
+      photo: req.files.buyerPhoto.map(
+        (f) => f.path
+      ),
     };
 
     car.buyerRto = {
-      form29: req.files.form29.map(f => f.path),
-      form30: req.files.form30.map(f => f.path),
-      form28: req.files.form28?.map(f => f.path) || [],
-      form35: req.files.form35?.map(f => f.path) || [],
+      form29: req.files.form29.map((f) => f.path),
+      form30: req.files.form30.map((f) => f.path),
+      form28:
+        req.files.form28?.map((f) => f.path) || [],
+      form35:
+        req.files.form35?.map((f) => f.path) || [],
     };
 
     /* ================= EXTRA ADMIN EXPENSES ================= */
     let extraAdminExpenses = [];
+
     if (req.body.extraAdminExpensesJson) {
       try {
-        extraAdminExpenses = JSON.parse(req.body.extraAdminExpensesJson);
+        extraAdminExpenses = JSON.parse(
+          req.body.extraAdminExpensesJson
+        );
       } catch {
         extraAdminExpenses = [];
       }
     }
 
     extraAdminExpenses = extraAdminExpenses.filter(
-      e => e.label && Number(e.amount) > 0
+      (e) => e.label && Number(e.amount) > 0
     );
 
     car.adminExpenses = [
@@ -622,7 +1072,6 @@ exports.markCarAsSold = async (req, res) => {
 
     /* ================= CREATE SALE RECORD ================= */
     const saleRecord = await Sale.create({
-
       carId: car._id,
       soldPrice: soldPriceNum,
       saleDate: car.soldAt,
@@ -634,64 +1083,71 @@ exports.markCarAsSold = async (req, res) => {
           remainingAmount === 0
             ? "PAID"
             : totalPaidNow > 0
-              ? "PARTIAL"
-              : "PENDING",
+            ? "PARTIAL"
+            : "PENDING",
       },
     });
 
     /* ================= CREATE PAYMENT ENTRIES ================= */
-
     let paidSoFar = 0;
 
-    // 🔹 CASH / UPI / BANK (including loan + cash)
-    if (cashPaidNum > 0) {
-      paidSoFar = cashPaidNum;
-
-      await Payment.create({
-        saleId: saleRecord._id,
-        carId: car._id,
-
-        amount: cashPaidNum,
-        paymentType:
-          paymentType === "LOAN" ? "CASH" : paymentType,
-
-        paymentMode:
-          paymentType === "LOAN"
-            ? cashPaymentMode || "CASH"
-            : paymentType,
-
-        note: `${paymentType === "LOAN"
-          ? cashPaymentMode || "CASH"
-          : paymentType} payment received`,
-
-        // ✅ SNAPSHOT
-        paidTillNow: paidSoFar,
-        remainingAfterPayment: soldPriceNum - paidSoFar,
-
-        invoiceDate: new Date(),
-      });
-    }
-
-    // 🔹 LOAN DISBURSEMENT
-    if (loanPaidNowNum > 0) {
-      paidSoFar += loanPaidNowNum;
-
-      await Payment.create({
-        saleId: saleRecord._id,
-        carId: car._id,
-
-        amount: loanPaidNowNum,
+    const paymentEntries = [
+      {
+        amount: paymentData.cashPaidAmount,
+        paymentType: "CASH",
+        paymentMode: "CASH",
+        note: "Cash payment received",
+      },
+      {
+        amount: paymentData.upiPaidAmount,
+        paymentType: "UPI",
+        paymentMode: "UPI",
+        transactionId: paymentData.upiTransactionId,
+        note: "UPI payment received",
+      },
+      {
+        amount: paymentData.bankPaidAmount,
+        paymentType: "BANK",
+        paymentMode: "BANK",
+        transactionId: paymentData.bankTransactionId,
+        note: "Bank transfer received",
+      },
+      {
+        amount: paymentData.loanPaidAmount,
         paymentType: "LOAN",
+        paymentMode: "LOAN",
         note: "Loan amount disbursed",
+      },
+      {
+        amount: paymentData.blackPaidAmount,
+        paymentType: "BLACK",
+        paymentMode: "BLACK",
+        note: "Unrecorded cash received",
+      },
+    ];
 
-        // ✅ SNAPSHOT
-        paidTillNow: paidSoFar,
-        remainingAfterPayment: soldPriceNum - paidSoFar,
+    for (const entry of paymentEntries) {
+      if (entry.amount > 0) {
+        paidSoFar += entry.amount;
 
-        invoiceDate: new Date(),
-      });
+        await Payment.create({
+          saleId: saleRecord._id,
+          carId: car._id,
+
+          amount: entry.amount,
+          paymentType: entry.paymentType,
+          paymentMode: entry.paymentMode,
+          transactionId: entry.transactionId || "",
+          note: entry.note,
+
+          paidTillNow: paidSoFar,
+          remainingAfterPayment:
+            soldPriceNum - paidSoFar,
+
+          invoiceDate: new Date(),
+        });
+      }
     }
-
 
     /* ================= RESPONSE ================= */
     return res.status(200).json({
@@ -699,9 +1155,12 @@ exports.markCarAsSold = async (req, res) => {
       car,
       sale: saleRecord,
     });
-
   } catch (error) {
-    console.error("❌ markCarAsSold error:", error);
+    console.error(
+      "❌ markCarAsSold error:",
+      error
+    );
+
     return res.status(500).json({
       message: "Server Error",
       error: error.message,
@@ -716,7 +1175,9 @@ exports.markCarAsSold = async (req, res) => {
 // GET /api/admin/sales
 // ===============================
 exports.getAllSales = async (req, res) => {
+
   try {
+
     /* ================= FIND SALES ================= */
     const sales = await Sale.find()
       .sort({ createdAt: -1 })
@@ -724,46 +1185,79 @@ exports.getAllSales = async (req, res) => {
 
     /* ================= FORMAT RESPONSE ================= */
     const result = sales.map((sale) => {
+
       const car = sale.carId;
 
       return {
+
         saleId: sale._id,
 
+        // ================= CAR =================
         car: {
-          brand: car?.car?.brand,
-          variant: car?.car?.variant,
+
+          brand:
+            car?.car?.brand,
+
+          variant:
+            car?.car?.variant,
+
+          // ✅ NUMBER PLATE
+          registrationNumber:
+            car?.car?.registrationNumber ||
+            car?.registrationNumber ||
+            "—",
         },
 
+        // ================= BUYER =================
         buyer: {
-          name: car?.buyer?.name,
-          phone: car?.buyer?.phone,
+
+          name:
+            car?.buyer?.name,
+
+          phone:
+            car?.buyer?.phone,
         },
 
-        totalAmount: sale.paymentSummary.totalAmount,
-        paidAmount: sale.paymentSummary.paidAmount,
-        remainingAmount: sale.paymentSummary.remainingAmount,
-        status: sale.paymentSummary.status,
+        // ================= PAYMENT =================
+        totalAmount:
+          sale.paymentSummary.totalAmount,
 
-        // ✅ FIX: payment mode expose
+        paidAmount:
+          sale.paymentSummary.paidAmount,
+
+        remainingAmount:
+          sale.paymentSummary.remainingAmount,
+
+        status:
+          sale.paymentSummary.status,
+
+        // ================= PAYMENT MODE =================
         paymentMode:
           car?.payment?.cashPaymentMode ||
           car?.payment?.type ||
           "—",
 
-        soldAt: sale.saleDate,
+        // ================= SALE DATE =================
+        soldAt:
+          sale.saleDate,
       };
     });
 
-    res.status(200).json(result);
+    return res.status(200).json(result);
+
   } catch (error) {
-    console.error("❌ getAllSales error:", error);
-    res.status(500).json({
+
+    console.error(
+      "❌ getAllSales error:",
+      error
+    );
+
+    return res.status(500).json({
       message: "Failed to fetch sales",
       error: error.message,
     });
   }
 };
-
 
 
 // ===============================
@@ -942,15 +1436,27 @@ exports.getSellRequestById = async (req, res) => {
     // ✅ FRONTEND-SPECIFIC RESPONSE SHAPE
     const response = {
       _id: request._id,
+
       carDetails: request.car,
+
       images: request.car?.images || [],
+
       contact: request.seller,
+
       expectedPrice: request.sellerPrice,
+
       rcDetails: request.rcDetails,
+
       adminSellingPrice: request.adminSellingPrice,
+
+      sellerSettlement:
+        request.sellerSettlement || {},
+
       status: request.status,
+
       createdAt: request.createdAt,
     };
+
 
     res.status(200).json(response);
   } catch (error) {
@@ -1161,49 +1667,303 @@ exports.getFinalInvoice = async (req, res) => {
   }
 };
 
+// ===============================
+// GET /api/admin/purchase/:id/final-invoice
+// ===============================
+exports.getPurchaseFinalInvoice = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const purchase = await SellRequest.findById(id);
+    if (!purchase) {
+      return res.status(404).json({ message: "Purchase not found" });
+    }
+
+    const payments = await PurchasePayment.find({ 
+      purchaseId: id 
+    }).sort({ paymentDate: 1 });
+
+    const year = new Date().getFullYear();
+    const finalInvoiceNumber = `PFIN-${year}-${purchase._id.toString().slice(-5)}`;
+
+    res.status(200).json({
+      finalInvoiceNumber,
+      contact: purchase.seller,
+      carDetails: purchase.car,
+      sellerSettlement: purchase.sellerSettlement,
+      payments,
+      generatedAt: new Date(),
+    });
+
+  } catch (error) {
+    console.error("❌ getPurchaseFinalInvoice error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 
 // ===============================
 // PUT /api/admin/sell-requests/:id
 // ===============================
 exports.updateSellRequest = async (req, res) => {
+
+  console.log(
+    "🔥 EXTRA EXPENSES RECEIVED 👉",
+    req.body.extraAdminExpenses
+  );
+
   try {
+
     const { id } = req.params;
-    const {
-      expectedPrice,
+
+    let {
       adminSellingPrice,
+      adminExpenses = [],
+      sellerDocuments = [],
       features,
+      extraAdminExpenses,
+      expectedPrice,
       coverImageIndex,
+      seller,
+      car,
+      rcDetails,
     } = req.body;
+
+    // ===============================
+    // PARSE JSON STRINGS
+    // ===============================
+    if (typeof seller === "string") {
+      seller = JSON.parse(seller);
+    }
+
+    if (typeof car === "string") {
+      car = JSON.parse(car);
+    }
+
+    if (typeof rcDetails === "string") {
+      rcDetails = JSON.parse(rcDetails);
+    }
 
     const request = await SellRequest.findById(id);
 
     if (!request) {
-      return res.status(404).json({ message: "Sell request not found" });
+      return res.status(404).json({
+        message: "Sell request not found",
+      });
     }
 
-    // Update prices if provided
+    // ===============================
+    // UPDATE SELLER DETAILS
+    // ===============================
+    if (seller) {
+
+      request.seller = {
+        ...request.seller,
+        ...seller,
+      };
+    }
+
+    // ===============================
+    // UPDATE CAR DETAILS
+    // ===============================
+    if (car) {
+
+      // ===============================
+      // NORMALIZE ENUM VALUES
+      // ===============================
+      if (car.fuelType) {
+
+        const fuelMap = {
+          PETROL: "Petrol",
+          DIESEL: "Diesel",
+          EV: "Electric",
+          ELECTRIC: "Electric",
+          HYBRID: "Hybrid",
+          CNG: "CNG",
+        };
+
+        car.fuelType =
+          fuelMap[
+          car.fuelType.toUpperCase()
+          ] || car.fuelType;
+      }
+
+      if (car.transmission) {
+
+        const transmissionMap = {
+          MANUAL: "Manual",
+          AUTOMATIC: "Automatic",
+          AMT: "AMT",
+          CVT: "CVT",
+          DCT: "DCT",
+        };
+
+        car.transmission =
+          transmissionMap[
+          car.transmission.toUpperCase()
+          ] || car.transmission;
+      }
+
+      // ===============================
+      // SAFE FIELD UPDATE
+      // ===============================
+      request.car.brand =
+        car.brand ??
+        request.car.brand;
+
+      request.car.model =
+        car.model ??
+        request.car.model;
+
+      request.car.year =
+        car.year ??
+        request.car.year;
+
+      request.car.variant =
+        car.variant ??
+        request.car.variant;
+
+      request.car.transmission =
+        car.transmission ??
+        request.car.transmission;
+
+      request.car.fuelType =
+        car.fuelType ??
+        request.car.fuelType;
+
+      request.car.kmDriven =
+        car.kmDriven ??
+        request.car.kmDriven;
+
+      request.car.condition =
+        car.condition ??
+        request.car.condition;
+
+      request.car.registrationNumber =
+        car.registrationNumber ??
+        request.car.registrationNumber;
+
+      // ===============================
+      // KEEP OLD FEATURES
+      // ===============================
+      request.car.features =
+        request.car.features || {
+          entertainment: [],
+          safety: [],
+          comfort: [],
+          interiorExterior: [],
+          custom: [],
+        };
+
+      // ===============================
+      // KEEP OLD SPECIFICATIONS
+      // ===============================
+      request.car.specifications =
+        request.car.specifications || {
+          mileage: "",
+          engineDisplacement: "",
+          cylinders: "",
+          maxPower: "",
+          maxTorque: "",
+          seatingCapacity: "",
+          fuelTankCapacity: "",
+          bodyType: "",
+          groundClearance: "",
+        };
+    }
+
+    // ===============================
+    // UPDATE RC DETAILS
+    // ===============================
+    if (rcDetails) {
+
+      request.rcDetails = {
+        ...request.rcDetails,
+        ...rcDetails,
+      };
+    }
+
+    // ===============================
+    // UPDATE PRICES
+    // ===============================
     if (expectedPrice !== undefined) {
-      request.sellerPrice = Number(expectedPrice);
+
+      request.sellerPrice =
+        Number(expectedPrice);
     }
+
     if (adminSellingPrice !== undefined) {
-      request.adminSellingPrice = Number(adminSellingPrice);
+
+      request.adminSellingPrice =
+        Number(adminSellingPrice);
     }
+
+    // ===============================
+    // UPDATE FEATURES
+    // ===============================
     if (features !== undefined) {
+
       const parsedFeatures =
-        typeof features === "string" ? JSON.parse(features) : features;
-      request.car.features = normalizeFeatures(parsedFeatures);
+        typeof features === "string"
+          ? JSON.parse(features)
+          : features;
+
+      request.car.features =
+        normalizeFeatures(parsedFeatures);
     }
 
-    // Update images if provided
-    if (req.files && req.files.length > 0) {
-      const newImageUrls = req.files.map(file => file.path);
-      request.car.images = [...(request.car.images || []), ...newImageUrls];
+    // ===============================
+    // EXTRA ADMIN EXPENSES
+    // ===============================
+    let parsedExtraExpenses = [];
+
+    if (extraAdminExpenses) {
+
+      parsedExtraExpenses =
+        typeof extraAdminExpenses === "string"
+          ? JSON.parse(extraAdminExpenses)
+          : extraAdminExpenses;
     }
 
-    // ✅ HANDLE COVER IMAGE
+    request.extraAdminExpenses =
+      parsedExtraExpenses
+        .filter(
+          (e) =>
+            e.label &&
+            String(e.label).trim() !== "" &&
+            e.amount !== ""
+        )
+        .map((e) => ({
+          label: String(e.label).trim(),
+
+          amount:
+            Number(e.amount) || 0,
+        }));
+
+    // ===============================
+    // UPDATE IMAGES
+    // ===============================
+    if (
+      req.files &&
+      req.files.images &&
+      req.files.images.length > 0
+    ) {
+
+      const newImageUrls =
+        req.files.images.map(
+          (file) => file.path
+        );
+
+      request.car.images = [
+        ...(request.car.images || []),
+        ...newImageUrls,
+      ];
+    }
+
+    // ===============================
+    // HANDLE COVER IMAGE
+    // ===============================
     if (request.car.images?.length > 0) {
 
-      // If admin selected cover image
       if (coverImageIndex !== undefined) {
 
         request.car.coverImage =
@@ -1213,48 +1973,71 @@ exports.updateSellRequest = async (req, res) => {
 
       } else if (!request.car.coverImage) {
 
-        // ✅ fallback for old cars
         request.car.coverImage =
           request.car.images[0];
       }
     }
 
+    // ===============================
+    // SAVE REQUEST
+    // ===============================
     await request.save();
 
+    // ===============================
+    // UPDATE LIVE CAR
+    // ===============================
     if (request.status === "APPROVED") {
+
       await Car.updateOne(
-        { sellRequestId: request._id },
+        {
+          sellRequestId: request._id,
+        },
         {
           $set: {
-            sellerPrice: request.sellerPrice,
+
+            sellerPrice:
+              request.sellerPrice,
 
             adminSellingPrice:
               request.adminSellingPrice,
 
-            "car.features":
-              request.car.features,
+            extraAdminExpenses:
+              request.extraAdminExpenses,
 
-            "car.images":
-              request.car.images,
+            seller:
+              request.seller,
 
-            // ✅ COVER IMAGE
-            "car.coverImage":
-              request.car.coverImage,
+            rcDetails:
+              request.rcDetails,
+
+            car:
+              request.car,
           },
         }
       );
     }
 
-    res.status(200).json({
-      message: "Sell request updated successfully",
-      request
+    return res.status(200).json({
+      message:
+        "Sell request updated successfully",
+
+      request,
     });
+
   } catch (error) {
-    console.error("updateSellRequest ERROR:", error);
-    res.status(500).json({ message: "Server error" });
+
+    console.error(
+      "updateSellRequest ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      message: "Server error",
+
+      error: error.message,
+    });
   }
 };
-
 
 
 exports.getApprovedRequests = async (req, res) => {
@@ -1331,6 +2114,8 @@ exports.getCarById = async (req, res) => {
 
     const sell = car.sellRequestId;
 
+    console.log("🔥 GET CAR BY ID - EXTRA EXPENSES 👉", car.extraAdminExpenses);
+
     res.status(200).json({
       _id: car._id,
 
@@ -1364,6 +2149,9 @@ exports.getCarById = async (req, res) => {
       adminExpenses: sell?.adminExpenses || [],
       sellerDocuments: sell?.sellerDocuments || [],
       rcDetails: sell?.rcDetails || {},
+
+      // ===== EXTRA ADMIN EXPENSES (🔥 FIXED) =====
+      extraAdminExpenses: car.extraAdminExpenses || [],
 
       sellRequestId: sell?._id,
     });
@@ -1468,8 +2256,8 @@ exports.deleteSellerDocument =
   async (req, res) => {
 
     console.log(
-  "🔥 DELETE DOCUMENT API HIT"
-);
+      "🔥 DELETE DOCUMENT API HIT"
+    );
 
     try {
 
@@ -1553,6 +2341,214 @@ exports.deleteSellerDocument =
     }
   };
 
+
+
+// ================= ADD PURCHASE PAYMENT =================
+exports.addPurchasePayment = async (req, res) => {
+  try {
+    const { purchaseId } = req.params;
+
+    const {
+      amount,
+      paymentType,
+      note,
+    } = req.body;
+
+    const SellRequest = require("../models/SellRequest");
+
+    // FIND PURCHASE
+    const purchase =
+      await SellRequest.findById(
+        purchaseId
+      );
+
+    if (!purchase) {
+      return res.status(404).json({
+        message: "Purchase not found",
+      });
+    }
+
+    const paymentAmount =
+      Number(amount);
+
+    if (
+      !paymentAmount ||
+      paymentAmount <= 0
+    ) {
+      return res.status(400).json({
+        message: "Invalid payment amount",
+      });
+    }
+
+    // CREATE ARRAY IF NOT EXISTS
+    if (!purchase.purchasePayments) {
+      purchase.purchasePayments = [];
+    }
+
+    // ADD PAYMENT
+    purchase.purchasePayments.push({
+      amount: paymentAmount,
+      paymentType,
+      note,
+      paymentDate: new Date(),
+    });
+
+    // OLD PAID
+    const oldPaid =
+      purchase.purchasePayments.reduce(
+        (sum, p) =>
+          sum + (p.amount || 0),
+        0
+      );
+
+    // TOTALS
+    const totalPurchaseAmount =
+      purchase.sellerPrice || 0;
+
+    const dueAmount = Math.max(
+      0,
+      totalPurchaseAmount - oldPaid
+    );
+
+    // UPDATE sellerSettlement
+    purchase.sellerSettlement = {
+      ...purchase.sellerSettlement,
+
+      totalPurchaseAmount,
+
+      totalPaidAmount: oldPaid,
+
+      dueAmount,
+    };
+
+    await purchase.save();
+
+    /* ================================
+       CREATE PURCHASEPAYMENT COLLECTION ENTRY
+    ================================ */
+    const PurchasePayment = require("../models/PurchasePayment");
+
+    await PurchasePayment.create({
+      purchaseId: purchaseId,
+      amount: paymentAmount,
+      paymentType: paymentType,
+      paymentDate: new Date(),
+      note: note || "",
+      createdBy: "ADMIN",
+    });
+
+    res.status(200).json({
+      success: true,
+      message:
+        "Purchase payment added successfully",
+      payment:
+        purchase.purchasePayments[
+        purchase.purchasePayments.length -
+        1
+        ],
+    });
+  } catch (err) {
+    console.error(
+      "❌ addPurchasePayment error:",
+      err
+    );
+
+    res.status(500).json({
+      success: false,
+      message:
+        "Failed to add purchase payment",
+    });
+  }
+};
+
+// ================= GET PURCHASE PAYMENTS =================
+exports.getPurchasePayments = async (
+  req,
+  res
+) => {
+  try {
+    const { purchaseId } = req.params;
+
+    const SellRequest = require("../models/SellRequest");
+
+    const purchase =
+      await SellRequest.findById(
+        purchaseId
+      );
+
+    if (!purchase) {
+      return res.status(404).json({
+        message: "Purchase not found",
+      });
+    }
+
+    res.status(200).json(
+      purchase.purchasePayments || []
+    );
+  } catch (err) {
+    console.error(
+      "❌ getPurchasePayments error:",
+      err
+    );
+
+    res.status(500).json({
+      success: false,
+      message:
+        "Failed to fetch purchase payments",
+    });
+  }
+};
+
+// ================= GET PURCHASE PAYMENT INVOICE =================
+exports.getPurchasePaymentInvoice = async (req, res) => {
+  try {
+    const { purchaseId, paymentIndex } = req.params;
+
+    const SellRequest = require("../models/SellRequest");
+
+    /* ================= FIND PURCHASE ================= */
+    const purchase = await SellRequest.findById(purchaseId).lean();
+
+    if (!purchase) {
+      return res.status(404).json({
+        message: "Purchase not found",
+      });
+    }
+
+    /* ================= GET PAYMENT BY INDEX ================= */
+    const payment = purchase.purchasePayments?.[paymentIndex];
+
+    if (!payment) {
+      return res.status(404).json({
+        message: "Payment not found",
+      });
+    }
+
+    /* ================= RESPONSE ================= */
+    return res.status(200).json({
+      payment,
+      carDetails: purchase.car,
+      contact: purchase.seller,
+      purchaseDetails: {
+        totalPurchaseAmount: purchase.sellerPrice,
+        totalPaidAmount: purchase.purchasePayments.reduce(
+          (sum, p) => sum + (p.amount || 0),
+          0
+        ),
+      },
+    });
+  } catch (error) {
+    console.error(
+      "❌ getPurchasePaymentInvoice error:",
+      error
+    );
+
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
 
 
 exports.getBuyerDocuments = async (req, res) => {

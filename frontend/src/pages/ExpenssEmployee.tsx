@@ -9,8 +9,6 @@ import { Button } from "@mui/material";
 
 const ExpensesEmployee = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  // const [activePerson, setActivePerson] =
-  //   useState<"RAHUL MUKATI" | "NILESH PRAJAPATI">("RAHUL MUKATI");
 
   const [activePerson, setActivePerson] = useState<string>("");
 
@@ -25,7 +23,7 @@ const ExpensesEmployee = () => {
   const [openModel, setOpenModal] = useState(false);
   const [newUser, setNewUser] = useState("");
 
-  
+
 
   useEffect(() => {
     fetchExpenses();
@@ -36,7 +34,7 @@ const ExpensesEmployee = () => {
     try {
       setLoading(true);
       const res = await api.get("/expenses");
-      setExpenses(res.data || []);
+      setExpenses(res.data.expenses || []);
     } catch (err) {
       console.error("❌ Failed to fetch expenses", err);
     } finally {
@@ -91,6 +89,10 @@ const ExpensesEmployee = () => {
         title: expense.title,
         amount: Number(expense.amount),
         category: expense.category,
+
+        // ✅ NEW FIELDS
+        paymentMode: expense.paymentMode,
+        notes: expense.notes,
       };
 
       console.log("Sending expense payload:", payload);
@@ -155,11 +157,11 @@ const ExpensesEmployee = () => {
       </div>
     );
 
-    
+
   }
 
-  
-  
+
+
   return (
     <div className="min-h-screen bg-gray-50 px-4 sm:px-6 py-6 sm:py-8">
 
@@ -179,7 +181,7 @@ const ExpensesEmployee = () => {
 
 
 
-{/* 
+        {/* 
         <div className="flex bg-white rounded-full p-1 shadow-sm border w-full sm:w-auto overflow-x-auto">
           {users.map((user) => (
             <button
@@ -229,7 +231,7 @@ const ExpensesEmployee = () => {
             <h3 className="text-lg sm:text-xl font-semibold mb-4">
               Add Entry
             </h3>
-            <ExpenseForm onAdd={addExpense}   />
+            <ExpenseForm onAdd={addExpense} />
           </div>
         </div>
 
@@ -241,7 +243,7 @@ const ExpensesEmployee = () => {
             <div className="flex flex-col gap-4 mb-6">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg sm:text-xl font-semibold">
-                   {users.find((user) => user._id === activePerson)?.name} 
+                  {users.find((user) => user._id === activePerson)?.name}
                 </h3>
                 <span className="text-sm text-gray-500">
                   Total: {filtered.length}
@@ -288,8 +290,8 @@ const ExpensesEmployee = () => {
           </div>
         </div>
       </div>
-      
-      
+
+
 
       {/* ================= ADD USER MODAL ================= */}
       {openModel && (

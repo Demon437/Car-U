@@ -172,7 +172,7 @@ const Footer = () => {
               {[
                 { icon: <Facebook className="w-5 h-5" />, link: "https://www.facebook.com/share/1BgHRsefef/?mibextid=wwXIfr" },
                 { icon: <Twitter className="w-5 h-5" />, link: "#" },
-                { icon: <Instagram className="w-5 h-5" />, link: "#" },
+                { icon: <Instagram className="w-5 h-5" />, link: "https://www.instagram.com/united_motors_indore?igsh=MXVvbHF2czJ0YWZvaQ==" },
                 { icon: <Youtube className="w-5 h-5" />, link: "https://youtube.com/@rahulmukati796?si=JHdiMy1HZBSXnabM" },
               ].map((item, i) => (
                 <a
@@ -230,30 +230,31 @@ const Footer = () => {
               <li className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                 <span className="text-gray-500 text-sm">
-                  Rau Circle, Over Bridge Near Baba Ram Dev Restaurant<br />
-                  Rau, 453331<br />
-                  Madhya Pradesh, India
+                  Ganesh Mandir Gate, Ring Road,<br />
+                  near Khajrana Road, Khajrana Square,<br />
+                  Ganeshpuri, Khajrana, Indore,<br />
+                  Madhya Pradesh 452016
                 </span>
               </li>
 
               <li className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-red-600" />
-                <a href="tel:+911234567890" className="text-gray-500 text-sm hover:text-red-600">
+                <a href="tel:+917000366498" className="text-gray-500 text-sm hover:text-red-600">
                   +91 7000366498
                 </a>
               </li>
 
               <li className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-red-600" />
-                <a href="tel:+911234567890" className="text-gray-500 text-sm hover:text-red-600">
+                <a href="tel:+919425092196" className="text-gray-500 text-sm hover:text-red-600">
                   +91 9425092196
                 </a>
               </li>
 
               <li className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-red-600" />
-                <a href="mailto:prajapatimukatimotors@gmail.com" className="text-gray-500 text-sm hover:text-red-600">
-                  demo@gmail.com
+                <a href="mailto:sale@unitedmotorsindia.com" className="text-gray-500 text-sm hover:text-red-600">
+                  sale@unitedmotorsindia.com
                 </a>
               </li>
             </ul>

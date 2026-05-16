@@ -436,7 +436,7 @@ const SellCar: React.FC<SellCarProps> = ({
       // Add videos if exists (only if they are new Files, not URL strings)
       videos.forEach((vid) => {
         if (vid instanceof File) {
-          data.append("video", vid);
+          data.append("videos", vid); // ✅ FIXED
         }
       });
 

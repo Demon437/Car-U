@@ -11,8 +11,13 @@ const ExpenseForm: React.FC<Props> = ({ onAdd }) => {
   const [type, setType] = useState<"PLUS" | "MINUS">("PLUS");
   const [category, setCategory] = useState("");
 
+  // ✅ NEW STATES
+  const [paymentMode, setPaymentMode] = useState("CASH");
+  const [notes, setNotes] = useState("");
+
   const submitHandler = (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!title || !amount) return;
 
     const numericAmount = Math.abs(Number(amount));
@@ -21,11 +26,18 @@ const ExpenseForm: React.FC<Props> = ({ onAdd }) => {
       title,
       amount: type === "MINUS" ? -numericAmount : numericAmount,
       category,
+
+      // ✅ NEW FIELDS
+      paymentMode,
+      notes,
     });
 
+    // RESET
     setTitle("");
     setAmount("");
     setCategory("");
+    setPaymentMode("CASH");
+    setNotes("");
     setType("MINUS");
   };
 
@@ -40,6 +52,7 @@ const ExpenseForm: React.FC<Props> = ({ onAdd }) => {
         <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">
           Title
         </label>
+
         <input
           className="
             w-full rounded-xl border border-gray-300 px-4 py-3 text-sm
@@ -51,6 +64,7 @@ const ExpenseForm: React.FC<Props> = ({ onAdd }) => {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
+
         <p className="text-[11px] text-gray-400">
           Short description of this entry
         </p>
@@ -63,10 +77,12 @@ const ExpenseForm: React.FC<Props> = ({ onAdd }) => {
           <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">
             Amount (₹)
           </label>
+
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium pointer-events-none">
               ₹
             </span>
+
             <input
               className="
                 w-full rounded-xl border border-gray-300 pl-10 pr-4 py-3 text-sm
@@ -103,9 +119,11 @@ const ExpenseForm: React.FC<Props> = ({ onAdd }) => {
               className={`
                 flex-1 font-bold transition-all duration-200
                 text-sm sm:text-base
-                ${type === "PLUS"
-                  ? "bg-red-600 text-white shadow-inner"
-                  : "bg-white text-red-600 hover:bg-red-50"}
+                ${
+                  type === "PLUS"
+                    ? "bg-red-600 text-white shadow-inner"
+                    : "bg-white text-red-600 hover:bg-red-50"
+                }
               `}
             >
               SPEND
@@ -118,9 +136,11 @@ const ExpenseForm: React.FC<Props> = ({ onAdd }) => {
               className={`
                 flex-1 font-bold transition-all duration-200
                 text-sm sm:text-base
-                ${type === "MINUS"
-                  ? "bg-green-600 text-white shadow-inner"
-                  : "bg-white text-green-600 hover:bg-green-50"}
+                ${
+                  type === "MINUS"
+                    ? "bg-green-600 text-white shadow-inner"
+                    : "bg-white text-green-600 hover:bg-green-50"
+                }
               `}
             >
               RETURN
@@ -129,6 +149,69 @@ const ExpenseForm: React.FC<Props> = ({ onAdd }) => {
         </div>
       </div>
 
+      {/* ================= CATEGORY ================= */}
+      <div className="space-y-1">
+        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">
+          Category
+        </label>
+
+        <input
+          className="
+            w-full rounded-xl border border-gray-300 px-4 py-3 text-sm
+            placeholder:text-gray-400
+            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+            transition
+          "
+          placeholder="Fuel, Office, Salary, Food..."
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+        />
+      </div>
+
+      {/* ================= PAYMENT MODE ================= */}
+      <div className="space-y-1">
+        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">
+          Payment Mode
+        </label>
+
+        <select
+          value={paymentMode}
+          onChange={(e) => setPaymentMode(e.target.value)}
+          className="
+            w-full rounded-xl border border-gray-300 px-4 py-3 text-sm
+            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+            transition bg-white
+          "
+        >
+          <option value="CASH">Cash</option>
+          <option value="UPI">UPI</option>
+          <option value="BANK_TRANSFER">Bank Transfer</option>
+          <option value="CARD">Card</option>
+          <option value="CHEQUE">Cheque</option>
+          <option value="LOAN">Loan</option>
+          <option value="OTHER">Other</option>
+        </select>
+      </div>
+
+      {/* ================= NOTES ================= */}
+      <div className="space-y-1">
+        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">
+          Notes
+        </label>
+
+        <textarea
+          rows={3}
+          placeholder="Additional notes..."
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="
+            w-full rounded-xl border border-gray-300 px-4 py-3 text-sm
+            placeholder:text-gray-400
+            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+            transition resize-none
+          "
+        />
+      </div>
 
       {/* ================= SUBMIT ================= */}
       <button
@@ -151,4 +234,3 @@ const ExpenseForm: React.FC<Props> = ({ onAdd }) => {
 };
 
 export default ExpenseForm;
-

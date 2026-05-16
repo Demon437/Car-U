@@ -2,6 +2,19 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "@/api/api";
 
+const formatPaymentLabel = (value: string) => {
+  if (["CASH", "UPI", "BANK"].includes(value)) {
+    return "Recorded Payment";
+  }
+
+  const labels: Record<string, string> = {
+    LOAN: "Loan Disbursement",
+    BLACK: "Unrecorded Cash",
+  };
+
+  return labels[value] || value;
+};
+
 const PaymentInvoice = () => {
   const { paymentId } = useParams();
   const [data, setData] = useState(null);
@@ -41,10 +54,13 @@ const PaymentInvoice = () => {
       ? "Loan Disbursement Receipt"
       : "Payment Receipt";
 
-  const paymentMode =
-    payment.paymentType === "LOAN"
-      ? "Loan"
-      : payment.paymentMode || payment.paymentType;
+  const paymentMode = formatPaymentLabel(
+    payment.paymentMode || payment.paymentType
+  );
+
+  const paymentBucket = formatPaymentLabel(
+    payment.adjustAgainst || payment.paymentType
+  );
 
   return (
     <div
@@ -122,7 +138,7 @@ const PaymentInvoice = () => {
           <tbody>
             <tr>
               <td className="border p-2">
-                Vehicle Payment ({paymentMode})
+                Vehicle Payment ({paymentBucket})
               </td>
               <td className="border p-2 text-right font-semibold">
                 ₹{payment.amount.toLocaleString()}

@@ -29,7 +29,7 @@ const Contact = () => {
       {/* Hero */}
       {/* <section className="pt-28 pb-12 bg-gradient-to-b from-red-500 via-red-600 to-red-700"> */}
       <section className="pt-20 pb-8 bg-gradient-to-b from-gray-700 via-red-600 to-gray-700">
-      {/* <section className="pt-28 pb-12 bg-gradient-to-b from-gray-600 via-red-500 to-gray-700"> */}
+        {/* <section className="pt-28 pb-12 bg-gradient-to-b from-gray-600 via-red-500 to-gray-700"> */}
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center space-y-6">
             <h1 className="text-4xl md:text-5xl font-bold text-white">
@@ -42,11 +42,11 @@ const Contact = () => {
         </div>
       </section>
 
-              <div className="mt-8 mr-2 ml-2">
-                <div className="rounded-xl overflow-hidden border border-gray-200">
-                  <MapComponent />
-                </div>
-              </div>
+      <div className="mt-8 mr-2 ml-2">
+        <div className="rounded-xl overflow-hidden border border-gray-200">
+          <MapComponent />
+        </div>
+      </div>
 
       {/* Contact Section */}
       <section className="py-16">
@@ -124,10 +124,10 @@ const Contact = () => {
                   <div>
                     <h3 className="font-semibold">Address</h3>
                     <p className="text-gray-500">
-                      Rau Circle, Over Bridge<br />
-                      Near Baba Ram Dev Restaurant<br />
-                      Rau, 453331<br />
-                      Indore, Madhya Pradesh, India
+                      Ganesh Mandir Gate, Ring Road,<br />
+                      near Khajrana Road, Khajrana Square,<br />
+                      Ganeshpuri, Khajrana,<br />
+                      Indore, Madhya Pradesh 452016
                     </p>
                   </div>
                 </div>
@@ -203,7 +203,7 @@ const Contact = () => {
                 </Button>
               </form>
 
-            
+
             </div>
 
           </div>

@@ -9,6 +9,11 @@ interface ApprovedRequest {
     brand: string;
     model: string;
     year: number;
+
+    registrationNumber?: string;
+
+    images?: string[];
+    coverImage?: string;
   };
   seller: {
     name: string;
@@ -21,38 +26,86 @@ interface ApprovedRequest {
 const ApprovedCard: React.FC<{
   request: ApprovedRequest;
   onClick: () => void;
-}> = ({ request, onClick }) => (
-  <div
-    onClick={onClick}
-    className="
-      bg-white rounded-2xl border shadow-sm
-      p-4 cursor-pointer
-      transition-all
-      active:scale-[0.98]
-      hover:shadow-lg
-    "
-  >
-    {/* Header */}
-    <div className="flex items-start justify-between mb-2">
-      <h2 className="text-base font-semibold text-gray-900 leading-tight">
-        {request.car.brand} {request.car.model}
-      </h2>
+}> = ({ request, onClick }) => {
+  const image =
+    request.car.coverImage ||
+    request.car.images?.[0] ||
+    "https://via.placeholder.com/400x300?text=No+Image";
 
-      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold whitespace-nowrap">
-        ₹{request.adminSellingPrice.toLocaleString()}
-      </span>
+  return (
+    <div
+      onClick={onClick}
+      className="
+        bg-white rounded-2xl border shadow-sm
+        overflow-hidden
+        cursor-pointer
+        transition-all
+        active:scale-[0.98]
+        hover:shadow-lg
+      "
+    >
+      {/* IMAGE */}
+      <div className="relative">
+        <img
+          src={image}
+          alt={`${request.car.brand} ${request.car.model}`}
+          className="
+            w-full h-52 object-cover
+          "
+        />
+
+        <div
+          className="
+            absolute top-3 right-3
+            bg-green-600 text-white
+            text-xs font-semibold
+            px-3 py-1 rounded-full
+            shadow
+          "
+        >
+          ₹
+          {request.adminSellingPrice.toLocaleString()}
+        </div>
+      </div>
+
+      {/* CONTENT */}
+      <div className="p-4">
+        {/* TITLE */}
+        <h2 className="text-lg font-bold text-gray-900">
+          {request.car.brand}{" "}
+          {request.car.model}
+        </h2>
+
+        {/* YEAR */}
+        <p className="text-sm text-gray-500 mt-1">
+          {request.car.year}
+        </p>
+
+        {/* SELLER */}
+        <div
+          className="
+            flex items-center justify-between
+            mt-4
+          "
+        >
+          <div>
+            <p className="text-sm font-medium text-gray-800">
+              {request.seller.name}
+            </p>
+
+            <p className="text-xs text-gray-500">
+              {request.seller.phone}
+            </p>
+          </div>
+
+          <span className="text-blue-600 font-medium text-sm">
+            View →
+          </span>
+        </div>
+      </div>
     </div>
-
-    {/* Meta */}
-    <p className="text-xs text-gray-500 mb-3">{request.car.year}</p>
-
-    {/* Seller */}
-    <div className="flex items-center justify-between text-sm text-gray-600">
-      <span>{request.seller.name}</span>
-      <span className="text-blue-600 font-medium">View →</span>
-    </div>
-  </div>
-);
+  );
+};
 
 /* ================= SEARCH ================= */
 const SearchBar: React.FC<{
@@ -61,7 +114,7 @@ const SearchBar: React.FC<{
 }> = ({ value, onChange }) => (
   <input
     type="text"
-    placeholder="Search brand, model, seller..."
+    placeholder="Search by Number Plate..."
     value={value}
     onChange={(e) => onChange(e.target.value)}
     className="
@@ -86,33 +139,33 @@ const FilterSort: React.FC<{
   onFilterBrandChange,
   brands,
 }) => (
-  <div className="flex flex-col gap-4">
-    <select
-      value={sortBy}
-      onChange={(e) => onSortChange(e.target.value)}
-      className="px-4 py-2 border border-gray-300 rounded-lg"
-    >
-      <option value="">Sort by...</option>
-      <option value="year-asc">Year (Oldest)</option>
-      <option value="year-desc">Year (Newest)</option>
-      <option value="price-asc">Price (Low → High)</option>
-      <option value="price-desc">Price (High → Low)</option>
-    </select>
+    <div className="flex flex-col gap-4">
+      <select
+        value={sortBy}
+        onChange={(e) => onSortChange(e.target.value)}
+        className="px-4 py-2 border border-gray-300 rounded-lg"
+      >
+        <option value="">Sort by...</option>
+        <option value="year-asc">Year (Oldest)</option>
+        <option value="year-desc">Year (Newest)</option>
+        <option value="price-asc">Price (Low → High)</option>
+        <option value="price-desc">Price (High → Low)</option>
+      </select>
 
-    <select
-      value={filterBrand}
-      onChange={(e) => onFilterBrandChange(e.target.value)}
-      className="px-4 py-2 border border-gray-300 rounded-lg"
-    >
-      <option value="">Filter by Brand</option>
-      {brands.map((brand) => (
-        <option key={brand} value={brand}>
-          {brand}
-        </option>
-      ))}
-    </select>
-  </div>
-);
+      <select
+        value={filterBrand}
+        onChange={(e) => onFilterBrandChange(e.target.value)}
+        className="px-4 py-2 border border-gray-300 rounded-lg"
+      >
+        <option value="">Filter by Brand</option>
+        {brands.map((brand) => (
+          <option key={brand} value={brand}>
+            {brand}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
 
 /* ================= PAGE ================= */
 const ApprovedRequests: React.FC = () => {
@@ -154,35 +207,64 @@ const ApprovedRequests: React.FC = () => {
 
   /* ================= FILTER LOGIC ================= */
   const filteredData = useMemo(() => {
-    let filtered = data.filter(
-      (r) =>
-        r.car.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        r.car.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        r.seller.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
 
+    let filtered = data.filter((r) => {
+
+      const registrationNumber =
+        r.car.registrationNumber || "";
+
+      return registrationNumber
+        .toLowerCase()
+        .replace(/\s/g, "")
+        .includes(
+          searchTerm
+            .toLowerCase()
+            .replace(/\s/g, "")
+        );
+    });
+
+    // ================= FILTER BRAND =================
     if (filterBrand) {
-      filtered = filtered.filter((r) => r.car.brand === filterBrand);
+      filtered = filtered.filter(
+        (r) => r.car.brand === filterBrand
+      );
     }
 
+    // ================= SORT =================
     if (sortBy) {
-      filtered = [...filtered].sort((a, b) => {
-        switch (sortBy) {
-          case "year-asc":
-            return a.car.year - b.car.year;
-          case "year-desc":
-            return b.car.year - a.car.year;
-          case "price-asc":
-            return a.adminSellingPrice - b.adminSellingPrice;
-          case "price-desc":
-            return b.adminSellingPrice - a.adminSellingPrice;
-          default:
-            return 0;
+
+      filtered = [...filtered].sort(
+        (a, b) => {
+
+          switch (sortBy) {
+
+            case "year-asc":
+              return a.car.year - b.car.year;
+
+            case "year-desc":
+              return b.car.year - a.car.year;
+
+            case "price-asc":
+              return (
+                a.adminSellingPrice -
+                b.adminSellingPrice
+              );
+
+            case "price-desc":
+              return (
+                b.adminSellingPrice -
+                a.adminSellingPrice
+              );
+
+            default:
+              return 0;
+          }
         }
-      });
+      );
     }
 
     return filtered;
+
   }, [data, searchTerm, sortBy, filterBrand]);
 
   /* ================= LOADER ================= */

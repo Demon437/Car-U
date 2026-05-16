@@ -18,8 +18,8 @@ app.use(cors({
     "http://localhost:8081",
     "http://localhost:3000",
     "http://localhost:5173",
-    "https://car-management-demo.netlify.app",
-    "https://car.webixinfotech.in"
+    "https://unitedmotorsindia.com",
+    "https://www.unitedmotorsindia.com",
   ],
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   credentials: true

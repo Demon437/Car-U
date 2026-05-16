@@ -53,6 +53,8 @@ const AddOfflineCar: React.FC = () => {
     rcImage: null as File | null,
   });
 
+  const [coverImageIndex, setCoverImageIndex] =
+    useState(0);
   const [images, setImages] = useState<(File | string)[]>([]);
 
   const [pricing, setPricing] = useState({
@@ -104,6 +106,29 @@ const AddOfflineCar: React.FC = () => {
     { label: "RC Original", file: null as File | null },
   ]);
 
+
+  const [sellerSettlement, setSellerSettlement] = useState({
+    onlinePayment: {
+      paymentMode: "",
+      bankName: "",
+      transactionId: "",
+      amount: "",
+      paymentDate: "",
+      notes: "",
+    },
+
+    cashPayment: {
+      amount: "",
+      receivedBy: "",
+      paymentDate: "",
+      notes: "",
+    },
+
+    totalPurchaseAmount: "",
+    totalPaidAmount: "",
+    dueAmount: "",
+  });
+
   const [documentOptions, setDocumentOptions] = useState([
     "RC Original",
     "Insurance",
@@ -124,7 +149,20 @@ const AddOfflineCar: React.FC = () => {
 
   const sellerExpectedPrice = Number(pricing.sellerPrice) || 0;
 
-  const netCostPrice = sellerExpectedPrice + totalAdminCost;
+  const netCostPrice =
+    sellerExpectedPrice;
+
+  const onlineAmount =
+    Number(sellerSettlement.onlinePayment.amount) || 0;
+
+  const cashAmount =
+    Number(sellerSettlement.cashPayment.amount) || 0;
+
+  const totalPaidAmount =
+    onlineAmount + cashAmount;
+
+  const dueAmount =
+    netCostPrice - totalPaidAmount;
 
 
   const validateForm = () => {
@@ -234,6 +272,10 @@ const AddOfflineCar: React.FC = () => {
     try {
       const formData = new FormData();
 
+
+
+
+
       // Add seller details
       Object.entries(seller).forEach(([key, value]) => {
         formData.append(`seller[${key}]`, value);
@@ -284,6 +326,11 @@ const AddOfflineCar: React.FC = () => {
         }
       });
 
+      formData.append(
+        "coverImageIndex",
+        String(coverImageIndex)
+      );
+
 
       videos.forEach((vid) => {
         if (vid instanceof File) {
@@ -304,12 +351,219 @@ const AddOfflineCar: React.FC = () => {
         "adminExpenses",
         JSON.stringify(cleanedExpenses)
       );
+
+
+      // ===== SELLER SETTLEMENT =====
+      const finalSellerSettlement = {
+        ...sellerSettlement,
+
+        totalPurchaseAmount: netCostPrice,
+
+        totalPaidAmount,
+
+        dueAmount,
+      };
+
+      formData.append(
+        "sellerSettlement",
+        JSON.stringify(finalSellerSettlement)
+      );
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Seller Settlement Details</CardTitle>
+          <CardDescription>
+            Track online and cash payments made to seller
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="space-y-6">
+
+          {/* ONLINE PAYMENT */}
+          <div>
+            <h3 className="font-semibold mb-4">
+              Online Payment
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              <div>
+                <Label>Payment Mode</Label>
+
+                <Input
+                  placeholder="UPI / NEFT / RTGS"
+                  value={sellerSettlement.onlinePayment.paymentMode}
+                  onChange={(e) =>
+                    setSellerSettlement({
+                      ...sellerSettlement,
+                      onlinePayment: {
+                        ...sellerSettlement.onlinePayment,
+                        paymentMode: e.target.value,
+                      },
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <Label>Bank Name</Label>
+
+                <Input
+                  placeholder="HDFC Bank"
+                  value={sellerSettlement.onlinePayment.bankName}
+                  onChange={(e) =>
+                    setSellerSettlement({
+                      ...sellerSettlement,
+                      onlinePayment: {
+                        ...sellerSettlement.onlinePayment,
+                        bankName: e.target.value,
+                      },
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <Label>Transaction ID</Label>
+
+                <Input
+                  placeholder="UTR / Transaction ID"
+                  value={sellerSettlement.onlinePayment.transactionId}
+                  onChange={(e) =>
+                    setSellerSettlement({
+                      ...sellerSettlement,
+                      onlinePayment: {
+                        ...sellerSettlement.onlinePayment,
+                        transactionId: e.target.value,
+                      },
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <Label>Online Amount</Label>
+
+                <Input
+                  type="number"
+                  placeholder="Amount"
+                  value={sellerSettlement.onlinePayment.amount}
+                  onChange={(e) =>
+                    setSellerSettlement({
+                      ...sellerSettlement,
+                      onlinePayment: {
+                        ...sellerSettlement.onlinePayment,
+                        amount: e.target.value,
+                      },
+                    })
+                  }
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* CASH PAYMENT */}
+          <div>
+            <h3 className="font-semibold mb-4">
+              Cash Payment
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              <div>
+                <Label>Cash Amount</Label>
+
+                <Input
+                  type="number"
+                  placeholder="Cash Amount"
+                  value={sellerSettlement.cashPayment.amount}
+                  onChange={(e) =>
+                    setSellerSettlement({
+                      ...sellerSettlement,
+                      cashPayment: {
+                        ...sellerSettlement.cashPayment,
+                        amount: e.target.value,
+                      },
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <Label>Received By</Label>
+
+                <Input
+                  placeholder="Received By"
+                  value={sellerSettlement.cashPayment.receivedBy}
+                  onChange={(e) =>
+                    setSellerSettlement({
+                      ...sellerSettlement,
+                      cashPayment: {
+                        ...sellerSettlement.cashPayment,
+                        receivedBy: e.target.value,
+                      },
+                    })
+                  }
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* SUMMARY */}
+          <div className="bg-gray-50 rounded-lg p-4 border">
+            <h3 className="font-semibold mb-3">
+              Settlement Summary
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+              <div>
+                <Label>Total Purchase Amount</Label>
+
+                <Input
+                  value={netCostPrice}
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <Label>Total Paid Amount</Label>
+
+                <Input
+                  value={totalPaidAmount}
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <Label>Due Amount</Label>
+
+                <Input
+                  value={dueAmount}
+                  readOnly
+                />
+              </div>
+            </div>
+          </div>
+
+        </CardContent>
+      </Card>
+
       // ===== SELLER DOCUMENTS =====
       documents.forEach((doc, i) => {
         if (doc.label && doc.file) {
-          formData.append(`documents[${i}][label]`, doc.label);
-          formData.append("documents", doc.file); // ✅ SAME KEY
-          formData.append(`documentsLabel[${i}]`, doc.label);
+
+          // ✅ LABEL
+          formData.append(
+            `sellerDocuments[${i}][label]`,
+            doc.label
+          );
+
+          // ✅ FILE
+          formData.append(
+            `sellerDocuments`,
+            doc.file
+          );
         }
       });
 
@@ -382,11 +636,22 @@ const AddOfflineCar: React.FC = () => {
                       : "Enter seller name"
                   }
                   value={seller.name}
-                  onChange={(e) =>
-                    setSeller({ ...seller, name: e.target.value })
-                  }
-                  className={`h-11 ${errors.sellerName ? "border-red-500" : ""}`}
+                  onChange={(e) => {
+                    // ✅ Auto capitalize first letter of every word
+                    const value = e.target.value.replace(
+                      /\b\w/g,
+                      (char) => char.toUpperCase()
+                    );
+
+                    setSeller({
+                      ...seller,
+                      name: value,
+                    });
+                  }}
+                  className={`h-11 ${errors.sellerName ? "border-red-500" : ""
+                    }`}
                 />
+
                 {errors.sellerName && (
                   <p className="text-red-500 text-xs mt-1">
                     {errors.sellerName}
@@ -401,13 +666,26 @@ const AddOfflineCar: React.FC = () => {
                 </Label>
                 <Input
                   id="sellerPhone"
+                  type="tel"
                   placeholder="Enter phone number"
                   value={seller.phone}
-                  onChange={(e) =>
-                    setSeller({ ...seller, phone: e.target.value })
-                  }
-                  className={`h-11 ${errors.sellerPhone ? "border-red-500" : ""}`}
+                  onChange={(e) => {
+                    // ✅ Only numbers allowed
+                    const value = e.target.value.replace(/\D/g, "");
+
+                    // ✅ Limit to 10 digits
+                    if (value.length <= 10) {
+                      setSeller({
+                        ...seller,
+                        phone: value,
+                      });
+                    }
+                  }}
+                  maxLength={10}
+                  className={`h-11 ${errors.sellerPhone ? "border-red-500" : ""
+                    }`}
                 />
+
                 {errors.sellerPhone && (
                   <p className="text-red-500 text-xs mt-1">
                     {errors.sellerPhone}
@@ -441,9 +719,18 @@ const AddOfflineCar: React.FC = () => {
                   id="sellerArea"
                   placeholder="Enter area or locality"
                   value={seller.area}
-                  onChange={(e) =>
-                    setSeller({ ...seller, area: e.target.value })
-                  }
+                  onChange={(e) => {
+                    // ✅ Auto capitalize first letter of every word
+                    const value = e.target.value.replace(
+                      /\b\w/g,
+                      (char) => char.toUpperCase()
+                    );
+
+                    setSeller({
+                      ...seller,
+                      area: value,
+                    });
+                  }}
                   className="h-11"
                 />
               </div>
@@ -503,7 +790,6 @@ const AddOfflineCar: React.FC = () => {
           </div>
 
           {/* ==================== CAR DETAILS ==================== */}
-          {/* ==================== CAR DETAILS ==================== */}
           <div className="space-y-4 sm:space-y-5 p-4 sm:p-5 bg-green-50 dark:bg-green-950 rounded-xl">
             <h3 className="text-base sm:text-lg font-semibold text-green-900 dark:text-green-100">
               🚗 Car Details
@@ -519,9 +805,22 @@ const AddOfflineCar: React.FC = () => {
                   id="carBrand"
                   placeholder="e.g., Maruti, Hyundai, Honda"
                   value={car.brand}
-                  onChange={(e) => setCar({ ...car, brand: e.target.value })}
-                  className={`h-11 ${errors.carBrand ? "border-red-500" : ""}`}
+                  onChange={(e) => {
+                    // ✅ Auto capitalize first letter of every word
+                    const value = e.target.value.replace(
+                      /\b\w/g,
+                      (char) => char.toUpperCase()
+                    );
+
+                    setCar({
+                      ...car,
+                      brand: value,
+                    });
+                  }}
+                  className={`h-11 ${errors.carBrand ? "border-red-500" : ""
+                    }`}
                 />
+
                 {errors.carBrand && (
                   <p className="text-red-500 text-xs mt-1">
                     {errors.carBrand}
@@ -532,15 +831,27 @@ const AddOfflineCar: React.FC = () => {
               {/* Model */}
               <div className="space-y-1">
                 <Label htmlFor="carModel" className="text-sm">
-                  Model *
+                  Name *
                 </Label>
                 <Input
                   id="carModel"
                   placeholder="e.g., Swift, Creta, City"
                   value={car.model}
-                  onChange={(e) => setCar({ ...car, model: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value;
+
+                    const capitalized =
+                      value.charAt(0).toUpperCase() +
+                      value.slice(1);
+
+                    setCar({
+                      ...car,
+                      model: capitalized,
+                    });
+                  }}
                   className={`h-11 ${errors.carModel ? "border-red-500" : ""}`}
                 />
+
                 {errors.carModel && (
                   <p className="text-red-500 text-xs mt-1">
                     {errors.carModel}
@@ -575,9 +886,16 @@ const AddOfflineCar: React.FC = () => {
                 </Label>
                 <Input
                   id="carVariant"
-                  placeholder="e.g., LXi, ZXi, AMT"
+                  placeholder="e.g., LXI, VXI, ZXI, AMT, SX, ZX"
                   value={car.variant}
-                  onChange={(e) => setCar({ ...car, variant: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value.toUpperCase();
+
+                    setCar({
+                      ...car,
+                      variant: value,
+                    });
+                  }}
                   className="h-11"
                 />
               </div>
@@ -673,13 +991,29 @@ const AddOfflineCar: React.FC = () => {
                 </Label>
                 <Input
                   id="carRegistrationNumber"
-                  placeholder="e.g., MH12AB1234"
+                  placeholder="e.g., MP04CG1234"
                   value={car.registrationNumber}
-                  onChange={(e) =>
-                    setCar({ ...car, registrationNumber: e.target.value })
-                  }
-                  className={`h-11 ${errors.carRegistrationNumber ? "border-red-500" : ""}`}
+                  onChange={(e) => {
+                    // ✅ Remove spaces and convert to uppercase
+                    const value = e.target.value
+                      .replace(/\s/g, "")
+                      .toUpperCase();
+
+                    // ✅ Limit max length
+                    if (value.length <= 10) {
+                      setCar({
+                        ...car,
+                        registrationNumber: value,
+                      });
+                    }
+                  }}
+                  maxLength={10}
+                  className={`h-11 ${errors.carRegistrationNumber
+                    ? "border-red-500"
+                    : ""
+                    }`}
                 />
+
                 {errors.carRegistrationNumber && (
                   <p className="text-red-500 text-xs mt-1">
                     {errors.carRegistrationNumber}
@@ -696,9 +1030,18 @@ const AddOfflineCar: React.FC = () => {
                   id="carCondition"
                   placeholder="e.g., Excellent, Good, Fair"
                   value={car.condition}
-                  onChange={(e) =>
-                    setCar({ ...car, condition: e.target.value })
-                  }
+                  onChange={(e) => {
+                    // ✅ Auto capitalize first letter of every word
+                    const value = e.target.value.replace(
+                      /\b\w/g,
+                      (char) => char.toUpperCase()
+                    );
+
+                    setCar({
+                      ...car,
+                      condition: value,
+                    });
+                  }}
                   className="h-11"
                 />
               </div>
@@ -720,57 +1063,96 @@ const AddOfflineCar: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
               {images.map((img, i) => {
                 const src =
-                  typeof img === "string" ? img : URL.createObjectURL(img);
+                  typeof img === "string"
+                    ? img
+                    : URL.createObjectURL(img);
+
+                const isCover = i === coverImageIndex;
 
                 return (
                   <div
                     key={i}
                     className="
-            relative
-            border
-            rounded-xl
-            p-1.5
-            bg-white dark:bg-gray-800
-            shadow-sm
-            overflow-hidden
-          "
+        relative
+        border
+        rounded-xl
+        p-1.5
+        bg-white dark:bg-gray-800
+        shadow-sm
+        overflow-hidden
+      "
                   >
+                    {/* IMAGE */}
                     <img
                       src={src}
                       alt={`Car image ${i + 1}`}
                       className="
-              w-full
-              aspect-square
-              object-cover
-              rounded-lg
-            "
+          w-full
+          aspect-square
+          object-cover
+          rounded-lg
+        "
                     />
 
-                    {/* REMOVE BUTTON */}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setImages((prev) =>
-                          prev.filter((_, idx) => idx !== i)
-                        )
-                      }
-                      className="
-              absolute
-              top-2 right-2
-              bg-red-600
-              text-white
-              w-7 h-7
-              rounded-full
-              text-sm
-              flex items-center justify-center
-              shadow
-              hover:bg-red-700
-              transition
-            "
-                      aria-label="Remove image"
-                    >
-                      ×
-                    </button>
+                    {/* COVER BADGE */}
+                    {isCover && (
+                      <div
+                        className="
+            absolute top-2 left-2
+            bg-green-600 text-white
+            text-[10px]
+            px-2 py-1
+            rounded-full
+            font-semibold
+          "
+                      >
+                        Cover
+                      </div>
+                    )}
+
+                    {/* ACTIONS */}
+                    <div className="absolute top-2 right-2 flex gap-2">
+                      {/* SET COVER */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCoverImageIndex(i)
+                        }
+                        className="
+            bg-black/70 text-white
+            text-[10px]
+            px-2 py-1
+            rounded
+            hover:bg-black
+          "
+                      >
+                        Cover
+                      </button>
+
+                      {/* REMOVE */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImages((prev) =>
+                            prev.filter((_, idx) => idx !== i)
+                          );
+
+                          // FIX INDEX
+                          if (coverImageIndex >= i) {
+                            setCoverImageIndex(0);
+                          }
+                        }}
+                        className="
+            bg-red-600 text-white
+            w-6 h-6 rounded-full
+            text-sm
+            flex items-center justify-center
+            hover:bg-red-700
+          "
+                      >
+                        ×
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -882,14 +1264,24 @@ const AddOfflineCar: React.FC = () => {
                     id="rcOwnerName"
                     placeholder="Enter RC owner's name"
                     value={rcDetails.rcOwnerName}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const value = e.target.value;
+
+                      // ✅ Capitalize every word
+                      const capitalized = value
+                        .toLowerCase()
+                        .replace(/\b\w/g, (char) =>
+                          char.toUpperCase()
+                        );
+
                       setRcDetails({
                         ...rcDetails,
-                        rcOwnerName: e.target.value,
-                      })
-                    }
+                        rcOwnerName: capitalized,
+                      });
+                    }}
                     className={errors.rcOwnerName ? "border-red-500" : ""}
                   />
+
                   {errors.rcOwnerName && (
                     <p className="text-red-500 text-sm mt-1">
                       {errors.rcOwnerName}
@@ -1313,7 +1705,192 @@ const AddOfflineCar: React.FC = () => {
           </div>
 
 
-          {/* ==================== SUBMIT BUTTON ==================== */}
+
+          {/* ==================== SELLER SETTLEMENT DETAILS ==================== */}
+          <div className="space-y-6 p-4 sm:p-5 bg-blue-50 dark:bg-blue-950 rounded-xl border">
+
+            <h3 className="text-base sm:text-lg font-semibold text-blue-900 dark:text-blue-100">
+              🏦 Seller Settlement Details
+            </h3>
+
+            {/* ONLINE PAYMENT */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-sm sm:text-base">
+                Online Payment
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                <div>
+                  <Label>Payment Mode</Label>
+
+                  <Input
+                    placeholder="UPI / NEFT / RTGS"
+                    value={sellerSettlement.onlinePayment.paymentMode}
+                    onChange={(e) =>
+                      setSellerSettlement({
+                        ...sellerSettlement,
+                        onlinePayment: {
+                          ...sellerSettlement.onlinePayment,
+                          paymentMode: e.target.value,
+                        },
+                      })
+                    }
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label>Bank Name</Label>
+
+                  <Input
+                    placeholder="HDFC Bank"
+                    value={sellerSettlement.onlinePayment.bankName}
+                    onChange={(e) =>
+                      setSellerSettlement({
+                        ...sellerSettlement,
+                        onlinePayment: {
+                          ...sellerSettlement.onlinePayment,
+                          bankName: e.target.value,
+                        },
+                      })
+                    }
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label>Transaction ID</Label>
+
+                  <Input
+                    placeholder="Transaction / UTR ID"
+                    value={sellerSettlement.onlinePayment.transactionId}
+                    onChange={(e) =>
+                      setSellerSettlement({
+                        ...sellerSettlement,
+                        onlinePayment: {
+                          ...sellerSettlement.onlinePayment,
+                          transactionId: e.target.value,
+                        },
+                      })
+                    }
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label>Online Amount (₹)</Label>
+
+                  <Input
+                    type="number"
+                    placeholder="e.g., 200000"
+                    value={sellerSettlement.onlinePayment.amount}
+                    onChange={(e) =>
+                      setSellerSettlement({
+                        ...sellerSettlement,
+                        onlinePayment: {
+                          ...sellerSettlement.onlinePayment,
+                          amount: e.target.value,
+                        },
+                      })
+                    }
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* CASH PAYMENT */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-sm sm:text-base">
+                Cash Payment
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                <div>
+                  <Label>Cash Amount (₹)</Label>
+
+                  <Input
+                    type="number"
+                    placeholder="e.g., 50000"
+                    value={sellerSettlement.cashPayment.amount}
+                    onChange={(e) =>
+                      setSellerSettlement({
+                        ...sellerSettlement,
+                        cashPayment: {
+                          ...sellerSettlement.cashPayment,
+                          amount: e.target.value,
+                        },
+                      })
+                    }
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label>Received By</Label>
+
+                  <Input
+                    placeholder="Seller Name"
+                    value={sellerSettlement.cashPayment.receivedBy}
+                    onChange={(e) =>
+                      setSellerSettlement({
+                        ...sellerSettlement,
+                        cashPayment: {
+                          ...sellerSettlement.cashPayment,
+                          receivedBy: e.target.value,
+                        },
+                      })
+                    }
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* SUMMARY */}
+            <div className="bg-white dark:bg-black/20 rounded-lg border p-4">
+
+              <h4 className="font-medium text-sm sm:text-base mb-4">
+                Settlement Summary
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+                <div>
+                  <Label>Total Purchase Amount</Label>
+
+                  <Input
+                    value={netCostPrice}
+                    readOnly
+                    className="mt-1 bg-gray-100"
+                  />
+                </div>
+
+                <div>
+                  <Label>Total Paid Amount</Label>
+
+                  <Input
+                    value={totalPaidAmount}
+                    readOnly
+                    className="mt-1 bg-gray-100"
+                  />
+                </div>
+
+                <div>
+                  <Label>Due Amount</Label>
+
+                  <Input
+                    value={dueAmount}
+                    readOnly
+                    className="mt-1 bg-gray-100"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* ==================== SUBMIT BUTTON ==================== */}
           <div
             className="

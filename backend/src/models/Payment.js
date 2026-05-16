@@ -14,41 +14,58 @@ const paymentSchema = new mongoose.Schema(
       required: true,
     },
 
+    // Amount received in this payment entry
     amount: {
       type: Number,
       required: true,
+      default: 0,
     },
 
+    // CASH | UPI | BANK | LOAN | BLACK
     paymentType: {
       type: String,
-      enum: ["CASH", "UPI", "BANK", "LOAN"],
+      enum: ["CASH", "UPI", "BANK", "LOAN", "BLACK"],
       required: true,
     },
 
+    // Optional mode
     paymentMode: {
       type: String,
-      enum: ["CASH", "UPI", "BANK"],
+      default: "",
     },
 
-    note: String,
+    // Transaction / Reference ID
+    transactionId: {
+      type: String,
+      default: "",
+    },
 
+    // Notes
+    note: {
+      type: String,
+      default: "",
+    },
+
+    // Actual payment date
     paymentDate: {
       type: Date,
       default: Date.now,
     },
 
-    // ✅ SNAPSHOT (THE FIX)
+    // Snapshot after this payment
     paidTillNow: {
       type: Number,
       required: true,
+      default: 0,
     },
 
     remainingAfterPayment: {
       type: Number,
       required: true,
+      default: 0,
     },
 
-    // 🧾 INVOICE
+    // Invoice fields
     invoiceNumber: {
       type: String,
       unique: true,

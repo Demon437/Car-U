@@ -49,18 +49,27 @@ const MarkSoldModal = ({
     buyerPhone: "",
     buyerEmail: "",
     buyerCity: "",
-    cashPaidNow: "",
-    loanPaidNow: "",
-    cashPaymentMode: "CASH",
+    paymentType: "CASH",
+
+    cashAmount: "",
+    upiAmount: "",
+    bankAmount: "",
+    loanAmount: "",
+    blackAmount: "",
+
+    cashPaidAmount: "",
+    upiPaidAmount: "",
+    bankPaidAmount: "",
+    loanPaidAmount: "",
+    blackPaidAmount: "",
+
+    financeCompany: "",
+    upiTransactionId: "",
+    bankTransactionId: "",
+    paymentNotes: "",
 
     soldPrice: "",
     saleDate: new Date().toISOString().split("T")[0],
-
-    // 🔥 PAYMENT INFO (NEW)
-    paymentType: "CASH", // CASH | UPI | BANK | LOAN
-    paidAmount: "",
-    loanAmount: "",
-    financeCompany: "",
 
     // ===== KYC FILES =====
     buyerAadhaarPhoto: null as File | null,
@@ -115,9 +124,9 @@ const MarkSoldModal = ({
       condition: data.condition ?? data.car?.condition ?? "",
       images: data.images ?? data.car?.images ?? [],
 
-      
 
-  
+
+
       // ===== PRICES =====
       sellerPrice: data.sellerPrice ?? null,
       adminSellingPrice: data.adminSellingPrice ?? null,
@@ -127,17 +136,18 @@ const MarkSoldModal = ({
 
       // ===== SELLER =====
       seller: data.seller ?? {},
-      
+
       // ... aapka purana code
       features: data.features ?? {}, // 🔥 Ye line add karo
 
       // ===== IMPORTANT FIX (🔥 THIS WAS MISSING) =====
-      
+
       adminExpenses: data.adminExpenses ?? [],
+      extraAdminExpenses: data.extraAdminExpenses ?? [],
       sellerDocuments: data.sellerDocuments ?? [],
       rcDetails: data.rcDetails ?? {},
 
-      
+
     };
   };
 
@@ -147,9 +157,13 @@ const MarkSoldModal = ({
       try {
         setFetching(true);
         const res = await api.get(`/cars/${initialCar._id}`);
+        console.log("🔥 FULL API RESPONSE 👉", res.data);
+
         const normalized = normalizeCar(res.data);
         setCar(normalized);
-        console.log("Fetched car details for marking sold:", res);
+        console.log("✅ Normalized car:", normalized);
+
+        // 🔥 DO NOT populate extraAdminExpenses - keep form clean for user to add new ones
       } catch (err) {
         console.error("❌ Failed to fetch car details", err);
         setCar(initialCar);
@@ -174,28 +188,75 @@ const MarkSoldModal = ({
     }));
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   // ================= PAYMENT CALCULATIONS =================
+
   const soldPriceNum = Number(formData.soldPrice || 0);
 
-  // Cash / UPI / Bank
-  const cashPaidNum = Number(formData.paidAmount || 0);
+  // Planned amounts
+  const cashAmountNum = Number(formData.cashAmount || 0);
+  const upiAmountNum = Number(formData.upiAmount || 0);
+  const bankAmountNum = Number(formData.bankAmount || 0);
+  const loanAmountNum = Number(formData.loanAmount || 0);
+  const blackAmountNum = Number(formData.blackAmount || 0);
 
-  // Loan
-  const loanTotalNum = Number(formData.loanAmount || 0);
-  const loanPaidNowNum = Number(formData.loanPaidNow || 0);
+  // Paid amounts
+  const cashPaidAmountNum = Number(formData.cashPaidAmount || 0);
+  const upiPaidAmountNum = Number(formData.upiPaidAmount || 0);
+  const bankPaidAmountNum = Number(formData.bankPaidAmount || 0);
+  const loanPaidAmountNum = Number(formData.loanPaidAmount || 0);
+  const blackPaidAmountNum = Number(formData.blackPaidAmount || 0);
 
-  // 🔥 loan part
-  const loanAmountNum =
-    formData.paymentType === "LOAN" ? Number(formData.loanAmount || 0) : 0;
+  // Total breakup amount
+  const totalPlannedAmount =
+    cashAmountNum +
+    upiAmountNum +
+    bankAmountNum +
+    loanAmountNum +
+    blackAmountNum;
 
-  // Calculations
-  const totalPaidNow = cashPaidNum + loanPaidNowNum;
-  const totalRemaining = soldPriceNum - totalPaidNow;
+  // Total actually received
+  const totalPaidNow =
+    cashPaidAmountNum +
+    upiPaidAmountNum +
+    bankPaidAmountNum +
+    loanPaidAmountNum +
+    blackPaidAmountNum;
+
+  // Remaining amount from breakup
+  const totalRemaining = Math.max(
+    0,
+    totalPlannedAmount - totalPaidNow
+  );
+
+  // Difference between sold price and breakup total
+  const paymentGap =
+    soldPriceNum - totalPlannedAmount;
+
+  // Whether breakup matches sold price
+  const isPaymentBalanced =
+    totalPlannedAmount === soldPriceNum;
+
+  console.log({
+    cashPaidAmountNum,
+    upiPaidAmountNum,
+    bankPaidAmountNum,
+    loanPaidAmountNum,
+    blackPaidAmountNum,
+    totalPaidNow,
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -221,18 +282,19 @@ const MarkSoldModal = ({
       return;
     }
 
-    if (cashPaidNum + loanPaidNowNum > soldPriceNum) {
-      setError("Cash + Loan cannot exceed sold price");
+    // ================= PAYMENT VALIDATION =================
+    if (totalPaidNow <= 0) {
+      setError("At least one payment amount is required");
       return;
     }
 
-    if (formData.paymentType === "LOAN" && !loanAmountNum) {
-      setError("Loan amount is required");
+    if (totalPaidNow > soldPriceNum) {
+      setError("Total payment amount cannot exceed sold price");
       return;
     }
 
-    if (formData.paymentType !== "LOAN" && !cashPaidNum) {
-      setError("Paid amount is required");
+    if (loanAmountNum > 0 && !formData.financeCompany.trim()) {
+      setError("Finance company is required when loan amount is entered");
       return;
     }
 
@@ -250,24 +312,37 @@ const MarkSoldModal = ({
       fd.append("buyerDetails[soldPrice]", formData.soldPrice);
       fd.append("buyerDetails[saleDate]", formData.saleDate || "");
 
-      fd.append("payment[type]", formData.paymentType);
-      fd.append("payment[amount]", String(cashPaidNum));
-
-      fd.append("payment[cashPaymentMode]", formData.cashPaymentMode);
-
+      // ================= SALE SUMMARY =================
       fd.append("sale[totalAmount]", String(soldPriceNum));
       fd.append("sale[paidAmount]", String(totalPaidNow));
       fd.append("sale[remainingAmount]", String(totalRemaining));
 
-      fd.append("payment[cashPaid]", String(cashPaidNum));
-      fd.append("payment[loanTotal]", String(loanTotalNum));
-      fd.append("payment[loanPaidNow]", String(loanPaidNowNum));
-      fd.append("payment[financeCompany]", formData.financeCompany || "");
+      // ================= PAYMENT DETAILS =================
+      fd.append("payment[type]", formData.paymentType);
 
-      if (formData.paymentType !== "LOAN" && cashPaidNum === 0) {
-        setError("Paid amount is required");
-        return;
-      }
+      fd.append("payment[cashAmount]", String(cashAmountNum));
+      fd.append("payment[upiAmount]", String(upiAmountNum));
+      fd.append("payment[bankAmount]", String(bankAmountNum));
+      fd.append("payment[loanAmount]", String(loanAmountNum));
+      fd.append("payment[blackAmount]", String(blackAmountNum));
+
+      fd.append("payment[financeCompany]", formData.financeCompany || "");
+      fd.append(
+        "payment[upiTransactionId]",
+        formData.upiTransactionId || ""
+      );
+
+      fd.append(
+        "payment[bankTransactionId]",
+        formData.bankTransactionId || ""
+      );
+      fd.append("payment[notes]", formData.paymentNotes || "");
+
+      fd.append("payment[cashPaidAmount]", formData.cashPaidAmount || "0");
+      fd.append("payment[upiPaidAmount]", formData.upiPaidAmount || "0");
+      fd.append("payment[bankPaidAmount]", formData.bankPaidAmount || "0");
+      fd.append("payment[loanPaidAmount]", formData.loanPaidAmount || "0");
+      fd.append("payment[blackPaidAmount]", formData.blackPaidAmount || "0");
 
       // -------- FILE FIELDS (CRITICAL) --------
       if (formData.buyerAadhaarPhoto)
@@ -1141,145 +1216,428 @@ const MarkSoldModal = ({
                       <label className="block text-sm font-medium mb-2">
                         Overall Payment Type
                       </label>
+
                       <select
                         value={formData.paymentType}
                         onChange={(e) =>
-                          setFormData((p) => ({
-                            ...p,
+                          setFormData((prev) => ({
+                            ...prev,
                             paymentType: e.target.value,
-                            paidAmount: "",
+
+                            // Reset all payment fields when payment type changes
+                            cashAmount: "",
+                            upiAmount: "",
+                            bankAmount: "",
                             loanAmount: "",
-                            loanPaidNow: "",
-                            cashPaymentMode:
-                              e.target.value === "CASH" ||
-                              e.target.value === "UPI" ||
-                              e.target.value === "BANK"
-                                ? e.target.value
-                                : "CASH", // LOAN default
+                            blackAmount: "",
+
+                            financeCompany: "",
+                            upiTransactionId: "",
+                            bankTransactionId: "",
+                            paymentNotes: "",
                           }))
                         }
                         className="w-full px-4 py-2 border rounded-lg bg-white"
                       >
+                        {/* Single Modes */}
                         <option value="CASH">Cash Only</option>
                         <option value="UPI">UPI Only</option>
                         <option value="BANK">Bank Transfer Only</option>
-                        <option value="LOAN">Loan + Cash / UPI / Bank</option>
+                        <option value="LOAN">Loan Only</option>
+
+                        {/* Loan + White Money */}
+                        <option value="LOAN_CASH">Loan + Cash</option>
+                        <option value="LOAN_UPI">Loan + UPI</option>
+                        <option value="LOAN_BANK">Loan + Bank Transfer</option>
+
+                        {/* Loan + Black */}
+                        <option value="LOAN_BLACK">Loan + Unrecorded Cash</option>
+
+                        {/* Loan + White + Black */}
+                        <option value="LOAN_CASH_BLACK">
+                          Loan + Cash + Unrecorded Cash
+                        </option>
+                        <option value="LOAN_UPI_BLACK">
+                          Loan + UPI + Unrecorded Cash
+                        </option>
+                        <option value="LOAN_BANK_BLACK">
+                          Loan + Bank Transfer + Unrecorded Cash
+                        </option>
+
+                        {/* Without Loan */}
+                        <option value="CASH_BLACK">
+                          Cash + Unrecorded Cash
+                        </option>
+                        <option value="UPI_BLACK">
+                          UPI + Unrecorded Cash
+                        </option>
+                        <option value="BANK_BLACK">
+                          Bank Transfer + Unrecorded Cash
+                        </option>
                       </select>
                     </div>
 
-                    {/* SINGLE PAYMENT (NON-LOAN) */}
-                    {formData.paymentType !== "LOAN" && (
-                      <div className="bg-white p-4 rounded-lg border space-y-2">
-                        <label className="block text-sm font-medium">
-                          Amount Received from Buyer
+                    {/* PAYMENT DETAILS */}
+                    <div className="bg-white p-4 rounded-lg border space-y-4">
+                      <h5 className="font-medium text-gray-800">
+                        Payment Details
+                      </h5>
+
+                      {/* Helper function for each payment card */}
+                      {/*
+    For each payment method:
+    - Main input (e.g. cashAmount) is treated as Total Amount
+    - Paid Amount is editable
+    - Remaining = Total - Paid
+  */}
+
+                      <div className="space-y-4">
+
+                        {/* ================= CASH PAYMENT ================= */}
+                        {(formData.paymentType === "CASH" ||
+                          formData.paymentType.includes("CASH")) && (
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-4">
+                              <h6 className="font-medium text-green-900">
+                                💵 Cash Payment
+                              </h6>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Total Amount */}
+                                <div>
+                                  <label className="block text-sm font-medium mb-1">
+                                    Total Amount
+                                  </label>
+                                  <input
+                                    type="number"
+                                    name="cashAmount"
+                                    value={formData.cashAmount}
+                                    onChange={handleChange}
+                                    placeholder="Enter total cash amount"
+                                    className="w-full px-4 py-2 border rounded-lg"
+                                  />
+                                </div>
+
+                                {/* Paid Amount */}
+                                <div>
+                                  <label className="block text-sm font-medium mb-1">
+                                    Paid Amount
+                                  </label>
+                                  <input
+                                    type="number"
+                                    name="cashPaidAmount"
+                                    value={(formData as any).cashPaidAmount || ""}
+                                    onChange={handleChange}
+                                    placeholder="Enter paid cash amount"
+                                    className="w-full px-4 py-2 border rounded-lg"
+                                  />
+                                </div>
+
+                                {/* Remaining Amount */}
+                                <div className="md:col-span-2">
+                                  <label className="block text-sm font-medium mb-1">
+                                    Remaining Amount
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={
+                                      Math.max(
+                                        0,
+                                        Number(formData.cashAmount || 0) -
+                                        Number((formData as any).cashPaidAmount || 0)
+                                      )
+                                    }
+                                    readOnly
+                                    className="w-full px-4 py-2 border rounded-lg bg-gray-50"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                        {/* ================= UPI PAYMENT ================= */}
+                        {(formData.paymentType === "UPI" ||
+                          formData.paymentType.includes("UPI")) && (
+                            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 space-y-4">
+                              <h6 className="font-medium text-indigo-900">
+                                📱 UPI Payment
+                              </h6>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-sm font-medium mb-1">
+                                    Total Amount
+                                  </label>
+                                  <input
+                                    type="number"
+                                    name="upiAmount"
+                                    value={formData.upiAmount}
+                                    onChange={handleChange}
+                                    className="w-full px-4 py-2 border rounded-lg"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-sm font-medium mb-1">
+                                    Paid Amount
+                                  </label>
+                                  <input
+                                    type="number"
+                                    name="upiPaidAmount"
+                                    value={(formData as any).upiPaidAmount || ""}
+                                    onChange={handleChange}
+                                    className="w-full px-4 py-2 border rounded-lg"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-sm font-medium mb-1">
+                                    Transaction ID
+                                  </label>
+                                  <input
+                                    type="text"
+                                    name="upiTransactionId"
+                                    value={formData.upiTransactionId}
+                                    onChange={handleChange}
+                                    placeholder="Enter UPI transaction ID"
+                                    className="w-full px-4 py-2 border rounded-lg"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-sm font-medium mb-1">
+                                    Remaining Amount
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={
+                                      Math.max(
+                                        0,
+                                        Number(formData.upiAmount || 0) -
+                                        Number((formData as any).upiPaidAmount || 0)
+                                      )
+                                    }
+                                    readOnly
+                                    className="w-full px-4 py-2 border rounded-lg bg-gray-50"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                        {/* ================= BANK PAYMENT ================= */}
+                        {(formData.paymentType === "BANK" ||
+                          formData.paymentType.includes("BANK")) && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-4">
+                              <h6 className="font-medium text-blue-900">
+                                🏦 Bank Transfer
+                              </h6>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-sm font-medium mb-1">
+                                    Total Amount
+                                  </label>
+                                  <input
+                                    type="number"
+                                    name="bankAmount"
+                                    value={formData.bankAmount}
+                                    onChange={handleChange}
+                                    className="w-full px-4 py-2 border rounded-lg"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-sm font-medium mb-1">
+                                    Paid Amount
+                                  </label>
+                                  <input
+                                    type="number"
+                                    name="bankPaidAmount"
+                                    value={(formData as any).bankPaidAmount || ""}
+                                    onChange={handleChange}
+                                    className="w-full px-4 py-2 border rounded-lg"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-sm font-medium mb-1">
+                                    Transaction ID
+                                  </label>
+                                  <input
+                                    type="text"
+                                    name="bankTransactionId"
+                                    value={formData.bankTransactionId}
+                                    onChange={handleChange}
+                                    placeholder="Enter bank reference number"
+                                    className="w-full px-4 py-2 border rounded-lg"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-sm font-medium mb-1">
+                                    Remaining Amount
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={
+                                      Math.max(
+                                        0,
+                                        Number(formData.bankAmount || 0) -
+                                        Number((formData as any).bankPaidAmount || 0)
+                                      )
+                                    }
+                                    readOnly
+                                    className="w-full px-4 py-2 border rounded-lg bg-gray-50"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                        {/* ================= LOAN PAYMENT ================= */}
+                        {formData.paymentType.includes("LOAN") && (
+                          <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4 space-y-4">
+                            <h6 className="font-medium text-cyan-900">
+                              🏦 Loan Details
+                            </h6>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium mb-1">
+                                  Total Amount
+                                </label>
+                                <input
+                                  type="number"
+                                  name="loanAmount"
+                                  value={formData.loanAmount}
+                                  onChange={handleChange}
+                                  className="w-full px-4 py-2 border rounded-lg"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium mb-1">
+                                  Paid Amount
+                                </label>
+                                <input
+                                  type="number"
+                                  name="loanPaidAmount"
+                                  value={formData.loanPaidAmount}
+                                  onChange={handleChange}
+                                  className="w-full px-4 py-2 border rounded-lg"
+                                  placeholder="Enter paid amount"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium mb-1">
+                                  Finance Company
+                                </label>
+                                <input
+                                  type="text"
+                                  name="financeCompany"
+                                  value={formData.financeCompany}
+                                  onChange={handleChange}
+                                  className="w-full px-4 py-2 border rounded-lg"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium mb-1">
+                                  Remaining Amount
+                                </label>
+                                <input
+                                  type="number"
+                                  value={
+                                    Math.max(
+                                      0,
+                                      Number(formData.loanAmount || 0) -
+                                      Number((formData as any).loanPaidAmount || 0)
+                                    )
+                                  }
+                                  readOnly
+                                  className="w-full px-4 py-2 border rounded-lg bg-gray-50"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ================= UNRECORDED CASH ================= */}
+                        {formData.paymentType.includes("BLACK") && (
+                          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 space-y-4">
+                            <h6 className="font-medium text-orange-900">
+                              💵 Unrecorded Cash
+                            </h6>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium mb-1">
+                                  Total Amount
+                                </label>
+                                <input
+                                  type="number"
+                                  name="blackAmount"
+                                  value={formData.blackAmount}
+                                  onChange={handleChange}
+                                  className="w-full px-4 py-2 border rounded-lg"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium mb-1">
+                                  Paid Amount
+                                </label>
+                                <input
+                                  type="number"
+                                  name="blackPaidAmount"
+                                  value={(formData as any).blackPaidAmount || ""}
+                                  onChange={handleChange}
+                                  className="w-full px-4 py-2 border rounded-lg"
+                                />
+                              </div>
+
+                              <div className="md:col-span-2">
+                                <label className="block text-sm font-medium mb-1">
+                                  Remaining Amount
+                                </label>
+                                <input
+                                  type="number"
+                                  value={
+                                    Math.max(
+                                      0,
+                                      Number(formData.blackAmount || 0) -
+                                      Number((formData as any).blackPaidAmount || 0)
+                                    )
+                                  }
+                                  readOnly
+                                  className="w-full px-4 py-2 border rounded-lg bg-gray-50"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* PAYMENT NOTES */}
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          Payment Notes
                         </label>
-                        <input
-                          type="number"
-                          name="paidAmount"
-                          value={formData.paidAmount}
+                        <textarea
+                          name="paymentNotes"
+                          value={formData.paymentNotes}
                           onChange={handleChange}
-                          placeholder="Enter amount received"
+                          rows={3}
+                          placeholder="Optional notes about the payment"
                           className="w-full px-4 py-2 border rounded-lg"
                         />
                       </div>
-                    )}
-
-                    {/* LOAN FLOW */}
-                    {formData.paymentType === "LOAN" && (
-                      <>
-                        {/* LOAN DETAILS */}
-                        <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg space-y-4">
-                          <h5 className="font-medium text-blue-900">
-                            🏦 Loan Details
-                          </h5>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-sm font-medium mb-1">
-                                Total Loan Amount
-                              </label>
-                              <input
-                                type="number"
-                                name="loanAmount"
-                                value={formData.loanAmount}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2 border rounded-lg"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-sm font-medium mb-1">
-                                Loan Amount Disbursed Now
-                              </label>
-                              <input
-                                type="number"
-                                name="loanPaidNow"
-                                value={formData.loanPaidNow}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2 border rounded-lg"
-                              />
-                            </div>
-
-                            <div className="md:col-span-2">
-                              <label className="block text-sm font-medium mb-1">
-                                Finance Company
-                              </label>
-                              <input
-                                type="text"
-                                name="financeCompany"
-                                value={formData.financeCompany}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2 border rounded-lg"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* BUYER PAYMENT MODE (ONLY WHEN LOAN) */}
-                        <div className="bg-white p-4 rounded-lg border space-y-3">
-                          <h5 className="font-medium text-gray-800">
-                            🟢 Buyer Paid (Non-Loan Part)
-                          </h5>
-
-                          <div>
-                            <label className="block text-sm font-medium mb-1">
-                              Buyer Payment Mode
-                            </label>
-                            <select
-                              value={formData.cashPaymentMode}
-                              onChange={(e) =>
-                                setFormData((p) => ({
-                                  ...p,
-                                  cashPaymentMode: e.target.value,
-                                }))
-                              }
-                              className="w-full px-4 py-2 border rounded-lg bg-white"
-                            >
-                              <option value="CASH">Cash</option>
-                              <option value="UPI">UPI</option>
-                              <option value="BANK">Bank Transfer</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-medium mb-1">
-                              Amount Received from Buyer
-                            </label>
-                            <input
-                              type="number"
-                              name="paidAmount"
-                              value={formData.paidAmount}
-                              onChange={handleChange}
-                              placeholder="Buyer paid amount"
-                              className="w-full px-4 py-2 border rounded-lg"
-                            />
-                          </div>
-                        </div>
-                      </>
-                    )}
+                    </div>
 
                     {/* PAYMENT SUMMARY */}
                     <div className="bg-white p-4 rounded-lg border text-sm space-y-2">
+                      {/* Sold Price */}
                       <div className="flex justify-between">
                         <span>Total Sale Amount</span>
                         <span className="font-semibold">
@@ -1287,6 +1645,20 @@ const MarkSoldModal = ({
                         </span>
                       </div>
 
+                      {/* Planned Payment Breakup Total */}
+                      <div className="flex justify-between">
+                        <span>Total Planned Amount</span>
+                        <span
+                          className={`font-semibold ${isPaymentBalanced
+                            ? "text-green-600"
+                            : "text-red-600"
+                            }`}
+                        >
+                          ₹{totalPlannedAmount.toLocaleString()}
+                        </span>
+                      </div>
+
+                      {/* Paid Amount */}
                       <div className="flex justify-between">
                         <span>Total Paid Now</span>
                         <span className="text-green-600 font-medium">
@@ -1294,6 +1666,7 @@ const MarkSoldModal = ({
                         </span>
                       </div>
 
+                      {/* Remaining */}
                       <div className="flex justify-between font-semibold">
                         <span>Remaining Amount</span>
                         <span
@@ -1306,60 +1679,166 @@ const MarkSoldModal = ({
                           ₹{totalRemaining.toLocaleString()}
                         </span>
                       </div>
+
+                      {/* Validation Message */}
+                      {!isPaymentBalanced && (
+                        <div className="pt-2 mt-2 border-t text-xs text-red-600">
+                          Payment breakup does not match the
+                          Total Sale Amount.
+
+                          <div className="mt-1">
+                            Difference: ₹
+                            {Math.abs(paymentGap).toLocaleString()}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Success Message */}
+                      {isPaymentBalanced && soldPriceNum > 0 && (
+                        <div className="pt-2 mt-2 border-t text-xs text-green-600">
+                          Payment breakup matches the Total Sale
+                          Amount.
+                        </div>
+                      )}
                     </div>
                   </div>
-
                   {/* ADMIN EXPENSES */}
-                  {car.adminExpenses?.length > 0 && (
-                    <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg space-y-2">
-                      <h3 className="font-semibold text-lg">Admin Expenses</h3>
-                      {car.adminExpenses.map((exp: any, i: number) => (
-                        <div key={i} className="flex justify-between text-sm">
-                          <span>{exp.label}</span>
-                          <span className="font-semibold text-purple-700">
-                            ₹{exp.amount.toLocaleString()}
+                  {(
+                    (car.adminExpenses?.length || 0) > 0 ||
+                    (formData.extraAdminExpenses?.length || 0) > 0
+                  ) && (
+                      <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg space-y-3">
+
+                        <h3 className="font-semibold text-lg">
+                          Admin Expenses
+                        </h3>
+
+                        {/* NORMAL ADMIN EXPENSES */}
+                        {car.adminExpenses?.map(
+                          (exp: any, i: number) => (
+                            <div
+                              key={`admin-${i}`}
+                              className="flex justify-between text-sm"
+                            >
+                              <span>{exp.label}</span>
+
+                              <span className="font-semibold text-purple-700">
+                                ₹{Number(exp.amount).toLocaleString()}
+                              </span>
+                            </div>
+                          )
+                        )}
+
+                        {/* EXTRA ADMIN EXPENSES */}
+                        {formData.extraAdminExpenses
+                          ?.filter(
+                            (exp) =>
+                              exp.label &&
+                              exp.amount
+                          )
+                          .map((exp, i) => (
+                            <div
+                              key={`extra-${i}`}
+                              className="flex justify-between text-sm border-t pt-2"
+                            >
+                              <span>
+                                {exp.label}
+
+                                <span className="ml-2 text-xs text-gray-500">
+                                  (Extra)
+                                </span>
+                              </span>
+
+                              <span className="font-semibold text-red-600">
+                                ₹{Number(exp.amount).toLocaleString()}
+                              </span>
+                            </div>
+                          ))}
+                        {/* TOTAL */}
+                        <div className="border-t pt-3 flex justify-between">
+
+                          <span className="font-semibold">
+                            Total Expenses
                           </span>
+
+                          <span className="font-bold text-red-600">
+                            ₹{(
+                              (car.adminExpenses || []).reduce(
+                                (sum: number, exp: any) =>
+                                  sum + (Number(exp.amount) || 0),
+                                0
+                              ) +
+
+                              (formData.extraAdminExpenses || []).reduce(
+                                (sum: number, exp: any) =>
+                                  sum + (Number(exp.amount) || 0),
+                                0
+                              )
+                            ).toLocaleString()}
+                          </span>
+
                         </div>
-                      ))}
-                    </div>
-                  )}
+
+                      </div>
+                    )}
 
                   {/* EXTRA ADMIN EXPENSES */}
                   <div className="bg-gray-50 border p-4 rounded-lg space-y-3">
-                    <h4 className="font-semibold">Additional Admin Expenses</h4>
 
+                    <h4 className="font-semibold">
+                      Add Extra Admin Expense
+                    </h4>
+
+                    {/* INPUT ROWS */}
                     {formData.extraAdminExpenses.map((exp, i) => (
-                      <div key={i} className="flex gap-3">
+                      <div
+                        key={i}
+                        className="flex gap-3"
+                      >
+
                         <input
                           placeholder="Expense label"
                           className="border rounded px-3 py-2 flex-1"
                           value={exp.label}
                           onChange={(e) => {
-                            const copy = [...formData.extraAdminExpenses];
-                            copy[i].label = e.target.value;
+                            const copy = [
+                              ...formData.extraAdminExpenses,
+                            ];
+
+                            copy[i].label =
+                              e.target.value;
+
                             setFormData((p) => ({
                               ...p,
                               extraAdminExpenses: copy,
                             }));
                           }}
                         />
+
                         <input
                           type="number"
                           placeholder="Amount"
                           className="border rounded px-3 py-2 w-32"
                           value={exp.amount}
                           onChange={(e) => {
-                            const copy = [...formData.extraAdminExpenses];
-                            copy[i].amount = e.target.value;
+                            const copy = [
+                              ...formData.extraAdminExpenses,
+                            ];
+
+                            copy[i].amount =
+                              e.target.value;
+
                             setFormData((p) => ({
                               ...p,
                               extraAdminExpenses: copy,
                             }));
                           }}
                         />
+
                       </div>
                     ))}
 
+                    {/* ADD BUTTON */}
                     <button
                       type="button"
                       onClick={() =>
@@ -1367,16 +1846,19 @@ const MarkSoldModal = ({
                           ...p,
                           extraAdminExpenses: [
                             ...p.extraAdminExpenses,
-                            { label: "", amount: "" },
+                            {
+                              label: "",
+                              amount: "",
+                            },
                           ],
                         }))
                       }
                       className="text-blue-600 text-sm hover:underline"
                     >
-                      + Add expense
+                      + Add Expense
                     </button>
-                  </div>
 
+                  </div>
                   <div className="bg-red-50 border p-3 rounded-lg text-sm">
                     <div className="flex justify-between">
                       <span>Total Post-Sale Expenses</span>

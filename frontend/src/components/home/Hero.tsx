@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import motarsBanner from "@/assets/motars-banner.png";
+import mobileBanner from "@/assets/mobilebanner.png";
 import { useEffect, useState } from "react";
 import api from "@/api/api";
 
@@ -23,28 +24,58 @@ export const Hero = () => {
   useEffect(() => {
     const fetchCars = async () => {
       try {
-        const res = await api.get("/admin/live-cars");
-        const data = res.data.data || [];
+        const res = await api.get("/cars/featured");
 
-        const normalized: CarType[] = data.map((item: any) => ({
-          brand: item.car?.brand,
-          model: item.car?.model,
-          variant: item.car?.variant,
+        // 🔥 HANDLE API STRUCTURE
+        const data = Array.isArray(res.data)
+          ? res.data
+          : res.data.data || [];
+
+        console.log("🚗 Featured Cars:", data);
+
+        // 🔥 YEAR FILTER (LATEST 2 YEARS)
+        const currentYear = new Date().getFullYear();
+        const minYear = currentYear - 2;
+
+        const filtered = data.filter((item: any) => {
+          const year =
+            Number(item?.year) ||
+            Number(item?.car?.year) ||
+            new Date(item?.createdAt).getFullYear(); // fallback
+
+          console.log("🚗 HERO YEAR 👉", year);
+
+          return year >= minYear;
+        });
+
+        // 🔥 NORMALIZE AFTER FILTER
+        const normalized: CarType[] = filtered.map((item: any) => ({
+          // ✅ HANDLE BOTH API STRUCTURES
+          brand: item?.brand || item?.car?.brand || "",
+          model: item?.model || item?.car?.model || "",
+          variant: item?.variant || item?.car?.variant || "",
         }));
 
+        console.log("✅ NORMALIZED:", normalized);
+
+        // 🔥 SAVE CARS
         setCars(normalized);
 
+        // 🔥 UNIQUE BRANDS
         const uniqueBrands = [
           ...new Set(
             normalized
-              .map((car) => car.brand)
+              .map((car) => car.brand?.trim())
               .filter((b): b is string => Boolean(b))
           ),
         ];
 
+        console.log("✅ UNIQUE BRANDS:", uniqueBrands);
+
+        // 🔥 SAVE BRANDS
         setBrands(uniqueBrands);
       } catch (err) {
-        console.error("Error fetching cars", err);
+        console.error("❌ Error fetching cars:", err);
       }
     };
 
@@ -56,16 +87,26 @@ export const Hero = () => {
   };
 
   return (
-    <section className="relative min-h-[90vh] flex items-end pb-20 overflow-hidden bg-black text-white">
-      
+    <section className="relative min-h-[60vh] flex items-end mt-12 pb-20 overflow-hidden bg-black text-white">
+
       {/* BACKGROUND */}
       <div className="absolute inset-0">
+        {/* Desktop Banner */}
         <img
           src={motarsBanner}
           alt="United Motors Banner"
-          className="w-full h-full object-cover object-left"
+          className="hidden md:block w-full h-full object-contain "
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-black/10 to-black/20" />
+
+        {/* Mobile Banner */}
+        <img
+          src={mobileBanner}
+          alt="United Motors Mobile Banner"
+          className="block md:hidden w-full h-full object-cover object-top"
+        />
+
+        {/* Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-black/10 to-black/20 md:from-black/20 md:via-black/10 md:to-black/20" />
       </div>
 
       <div className="relative max-w-7xl mx-auto px-6 w-full z-10">
@@ -78,31 +119,64 @@ export const Hero = () => {
             transition={{ duration: 0.8 }}
             className="flex flex-col items-center lg:items-start text-center lg:text-left w-full"
           >
-
-            {/* SEARCH BAR */}
-            <div className="
-              mt-20 md:mt-28 lg:mt-36
-              w-full max-w-2xl
-              bg-white/5 backdrop-blur-xl border border-white/10
-              p-3 rounded-2xl flex flex-wrap gap-3 items-center
-              shadow-[0_10px_40px_rgba(0,0,0,0.4)]
-            ">
-
-              {/* INPUT */}
-              <div className="flex items-center gap-2 flex-1 px-3">
-                <Search className="w-4 h-4 text-gray-400" />
+            {/* ================= SEARCH CARD ================= */}
+            <div
+              className="
+      mt-6 sm:mt-8 md:mt-28 lg:mt-36
+      w-full max-w-2xl
+      rounded-3xl
+      border border-white/15
+      bg-slate-900/75
+      backdrop-blur-2xl
+      shadow-[0_20px_60px_rgba(0,0,0,0.45)]
+      ring-1 ring-white/10
+      p-4 sm:p-5
+    "
+            >
+              {/* Search Input */}
+              <div
+                className="
+        flex items-center gap-3
+        px-4 py-3.5
+        rounded-2xl
+        bg-white/8
+        border border-white/10
+        focus-within:border-red-400/60
+        focus-within:ring-2
+        focus-within:ring-red-500/20
+        transition-all
+      "
+              >
+                <Search className="w-5 h-5 text-gray-400 shrink-0" />
                 <input
                   type="text"
                   placeholder="Search brand, model, variant..."
-                  className="bg-transparent outline-none text-sm text-white placeholder-gray-400 w-full"
+                  className="
+          w-full bg-transparent outline-none
+          text-sm sm:text-base text-white
+          placeholder:text-gray-400
+        "
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
 
-              {/* DROPDOWN */}
+              {/* Brand Dropdown */}
               <select
-                className="bg-white/10 border border-white/20 px-3 py-2 rounded-lg text-sm text-white"
+                className="
+        mt-3 w-full
+        px-4 py-3.5
+        rounded-2xl
+        bg-gradient-to-r from-red-600 to-red-700
+        hover:from-red-700 hover:to-red-800
+        border border-white/10
+        text-sm sm:text-base text-white
+        outline-none
+        focus:border-red-400/60
+        focus:ring-2
+        focus:ring-red-500/20
+        transition-all
+      "
                 value={brand}
                 onChange={(e) => setBrand(e.target.value)}
               >
@@ -118,21 +192,39 @@ export const Hero = () => {
                 )}
               </select>
 
-              {/* BUTTON */}
+              {/* Search Button */}
               <button
                 onClick={handleSearch}
-                className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg flex items-center gap-2 shadow-lg transition-all"
+                className="
+        mt-4 w-full
+        bg-gradient-to-r from-red-600 to-red-700
+        hover:from-red-700 hover:to-red-800
+        text-white font-semibold
+        py-3.5 rounded-2xl
+        flex items-center justify-center gap-2
+        shadow-lg shadow-red-900/30
+        transition-all duration-300
+        hover:scale-[1.01]
+        active:scale-[0.99]
+      "
               >
                 <Search className="w-4 h-4" />
-                Search
+                Search Cars
               </button>
             </div>
 
-            {/* BUTTONS */}
-            <div className="flex flex-row items-center justify-center lg:justify-start gap-3 w-full mt-6">
+            {/* ================= ACTION BUTTONS ================= */}
+            <div className="flex flex-col sm:flex-row gap-3 w-full max-w-2xl mt-4">
               <Button
                 variant="hero"
-                className="bg-red-600 hover:bg-red-700 text-white shadow-lg flex-1 sm:flex-none h-11 sm:h-14 px-4 sm:px-8 text-sm sm:text-lg"
+                className="
+        w-full sm:w-auto
+        bg-red-600 hover:bg-red-700
+        text-white shadow-lg
+        h-12 sm:h-14
+        px-6 sm:px-8
+        text-sm sm:text-lg
+      "
                 asChild
               >
                 <Link to="/buy">Explore Collection</Link>
@@ -140,13 +232,21 @@ export const Hero = () => {
 
               <Button
                 variant="outline"
-                className="border-white/20 text-white hover:bg-white/10 flex-1 sm:flex-none h-11 sm:h-14 px-4 sm:px-8 text-sm sm:text-lg"
+                className="
+        w-full sm:w-auto
+        border-white/20
+        bg-black/40
+        text-white
+        hover:bg-white/10
+        h-12 sm:h-14
+        px-6 sm:px-8
+        text-sm sm:text-lg
+      "
                 asChild
               >
                 <Link to="/sell">Sell Your Car</Link>
               </Button>
             </div>
-
           </motion.div>
 
           {/* RIGHT EMPTY */}

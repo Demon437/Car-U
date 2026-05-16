@@ -13,7 +13,11 @@ import {
   FileText,
   Wallet,
   X,
+  Warehouse,
+  Users,
+  User,
 } from "lucide-react";
+
 import { useState, useEffect } from "react";
 
 const Sidebar = ({ open, setOpen }) => {
@@ -21,9 +25,13 @@ const Sidebar = ({ open, setOpen }) => {
   const location = useLocation();
 
   const [openRequests, setOpenRequests] = useState(false);
+  const [openInventory, setOpenInventory] = useState(false);
   const [openExpenses, setOpenExpenses] = useState(false);
 
-  // Auto open dropdown if inside requests pages
+  // =========================
+  // AUTO OPEN DROPDOWNS
+  // =========================
+
   useEffect(() => {
     if (
       location.pathname.includes("/admin/pending") ||
@@ -36,6 +44,17 @@ const Sidebar = ({ open, setOpen }) => {
 
   useEffect(() => {
     if (
+      location.pathname.includes("/admin/live-cars") ||
+      location.pathname.includes("/admin/parking-inventory") ||
+      location.pathname.includes("/admin/dealer") ||
+      location.pathname.includes("/admin/individual")
+    ) {
+      setOpenInventory(true);
+    }
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (
       location.pathname.includes("/admin/expenses-admin") ||
       location.pathname.includes("/admin/expenses-employee")
     ) {
@@ -43,20 +62,38 @@ const Sidebar = ({ open, setOpen }) => {
     }
   }, [location.pathname]);
 
+  // =========================
+  // LOGOUT
+  // =========================
+
   const logout = () => {
     localStorage.removeItem("token");
     navigate("/admin/login");
   };
 
+  // =========================
+  // NAV LINK STYLE
+  // =========================
+
   const linkClass = ({ isActive }) =>
-    `flex items-center gap-3 px-4 py-3 rounded-lg transition ${isActive
-      ? "bg-blue-600 text-white"
+    `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-sm font-medium ${isActive
+      ? "bg-blue-600 text-white shadow-sm"
+      : "text-gray-700 hover:bg-gray-100"
+    }`;
+
+  // =========================
+  // DROPDOWN BUTTON STYLE
+  // =========================
+
+  const dropdownClass = (isOpen) =>
+    `w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 text-sm font-medium ${isOpen
+      ? "bg-blue-50 text-blue-700"
       : "text-gray-700 hover:bg-gray-100"
     }`;
 
   return (
     <>
-      {/* OVERLAY (mobile only) */}
+      {/* MOBILE OVERLAY */}
       {open && (
         <div
           className="fixed inset-0 bg-black/40 z-30 md:hidden"
@@ -77,87 +114,189 @@ const Sidebar = ({ open, setOpen }) => {
         {/* HEADER */}
         <div className="px-6 py-5 border-b flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-blue-600">Car Admin</h1>
-            <p className="text-xs text-gray-500">Management Panel</p>
+            <h1 className="text-2xl font-bold text-blue-600">
+              Car Admin
+            </h1>
+
+            <p className="text-xs text-gray-500 mt-1">
+              Management Panel
+            </p>
           </div>
 
-          {/* Close button (mobile) */}
+          {/* MOBILE CLOSE */}
           <button
             className="md:hidden"
             onClick={() => setOpen(false)}
           >
-            <X />
+            <X size={22} />
           </button>
         </div>
 
         {/* MENU */}
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          <NavLink to="/admin/dashboard" className={linkClass} onClick={() => setOpen(false)}>
+
+          {/* DASHBOARD */}
+          <NavLink
+            to="/admin/dashboard"
+            className={linkClass}
+            onClick={() => setOpen(false)}
+          >
             <LayoutDashboard size={18} />
             Dashboard
           </NavLink>
 
+          {/* ========================= */}
           {/* REQUESTS */}
+          {/* ========================= */}
+
           <button
             onClick={() => setOpenRequests(!openRequests)}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition ${openRequests
-                ? "bg-blue-50 text-blue-700"
-                : "text-gray-700 hover:bg-gray-100"
-              }`}
+            className={dropdownClass(openRequests)}
           >
             <div className="flex items-center gap-3">
               <Clock size={18} />
               Requests
             </div>
-            {openRequests ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+
+            {openRequests ? (
+              <ChevronUp size={16} />
+            ) : (
+              <ChevronDown size={16} />
+            )}
           </button>
 
           {openRequests && (
-            <div className="ml-6 mt-2 space-y-1">
-              <NavLink to="/admin/pending" className={linkClass} onClick={() => setOpen(false)}>
+            <div className="ml-5 mt-2 space-y-1 border-l pl-4">
+
+              <NavLink
+                to="/admin/pending"
+                className={linkClass}
+                onClick={() => setOpen(false)}
+              >
                 <Clock size={16} />
                 Pending
               </NavLink>
 
-              <NavLink to="/admin/approved" className={linkClass} onClick={() => setOpen(false)}>
+              <NavLink
+                to="/admin/approved"
+                className={linkClass}
+                onClick={() => setOpen(false)}
+              >
                 <CheckCircle size={16} />
                 Approved
               </NavLink>
 
-              <NavLink to="/admin/rejected" className={linkClass} onClick={() => setOpen(false)}>
+              <NavLink
+                to="/admin/rejected"
+                className={linkClass}
+                onClick={() => setOpen(false)}
+              >
                 <XCircle size={16} />
                 Rejected
               </NavLink>
+
             </div>
           )}
 
-          <NavLink to="/admin/live-cars" className={linkClass} onClick={() => setOpen(false)}>
-            <Car size={18} />
-            Platform Cars
-          </NavLink>
+          {/* ========================= */}
+          {/* INVENTORY */}
+          {/* ========================= */}
 
-          <NavLink to="/admin/sales" className={linkClass} onClick={() => setOpen(false)}>
+          <button
+            onClick={() => setOpenInventory(!openInventory)}
+            className={dropdownClass(openInventory)}
+          >
+            <div className="flex items-center gap-3">
+              <Warehouse size={18} />
+              Inventory
+            </div>
+
+            {openInventory ? (
+              <ChevronUp size={16} />
+            ) : (
+              <ChevronDown size={16} />
+            )}
+          </button>
+
+          {openInventory && (
+            <div className="ml-5 mt-2 space-y-1 border-l pl-4">
+
+              <NavLink
+                to="/admin/live-cars"
+                className={linkClass}
+                onClick={() => setOpen(false)}
+              >
+                <Car size={16} />
+                Platform Cars
+              </NavLink>
+
+              {/*<NavLink
+                to="/admin/parking-inventory"
+                className={linkClass}
+                onClick={() => setOpen(false)}
+              >
+                <Warehouse size={16} />
+                Parking Inventory
+              </NavLink>*/}
+
+              <NavLink
+                to="/admin/dealer"
+                className={linkClass}
+                onClick={() => setOpen(false)}
+              >
+                <Users size={16} />
+                Dealer Cars
+              </NavLink>
+
+              <NavLink
+                to="/admin/individual"
+                className={linkClass}
+                onClick={() => setOpen(false)}
+              >
+                <User size={16} />
+                Individual Cars
+              </NavLink>
+
+            </div>
+          )}
+
+          {/* SALES */}
+          <NavLink
+            to="/admin/sales"
+            className={linkClass}
+            onClick={() => setOpen(false)}
+          >
             <Wallet size={18} />
             Sales
           </NavLink>
 
-          <NavLink to="/admin/documents" className={linkClass} onClick={() => setOpen(false)}>
+          {/* PURCHASES */}
+          <NavLink
+            to="/admin/purchases"
+            className={linkClass}
+            onClick={() => setOpen(false)}
+          >
+            <Car size={18} />
+            Purchases
+          </NavLink>
+
+          {/* DOCUMENTS */}
+          <NavLink
+            to="/admin/documents"
+            className={linkClass}
+            onClick={() => setOpen(false)}
+          >
             <FileText size={18} />
             Documents
           </NavLink>
 
-          {/* <NavLink to="/admin/expenses" className={linkClass} onClick={() => setOpen(false)}>
-            <Wallet size={18} />
-            Expenses
-          </NavLink> */}
+          {/* ========================= */}
+          {/* EXPENSES */}
+          {/* ========================= */}
 
-          {/* EXPENSES DROPDOWN */}
           <button
             onClick={() => setOpenExpenses(!openExpenses)}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition ${openExpenses
-                ? "bg-blue-50 text-blue-700"
-                : "text-gray-700 hover:bg-gray-100"
-              }`}
+            className={dropdownClass(openExpenses)}
           >
             <div className="flex items-center gap-3">
               <Wallet size={18} />
@@ -172,7 +311,8 @@ const Sidebar = ({ open, setOpen }) => {
           </button>
 
           {openExpenses && (
-            <div className="ml-6 mt-2 space-y-1">
+            <div className="ml-5 mt-2 space-y-1 border-l pl-4">
+
               <NavLink
                 to="/admin/expenses-admin"
                 className={linkClass}
@@ -190,39 +330,49 @@ const Sidebar = ({ open, setOpen }) => {
                 <Wallet size={16} />
                 Employee Expenses
               </NavLink>
+
             </div>
           )}
 
-          <NavLink to="/admin/add-offline" className={linkClass} onClick={() => setOpen(false)}>
+          {/* ADD OFFLINE CAR */}
+          <NavLink
+            to="/admin/add-offline"
+            className={linkClass}
+            onClick={() => setOpen(false)}
+          >
             <PlusCircle size={18} />
             Add Offline Car
           </NavLink>
 
-          <NavLink to="/admin/history" className={linkClass} onClick={() => setOpen(false)}>
+          {/* HISTORY */}
+          <NavLink
+            to="/admin/history"
+            className={linkClass}
+            onClick={() => setOpen(false)}
+          >
             <History size={18} />
             History
           </NavLink>
 
-          <NavLink to="/admin/dealer" className={linkClass} onClick={() => setOpen(false)}>
-            <Car size={18} />
-            Dealer
-          </NavLink>
-
-          <NavLink to="/admin/individual" className={linkClass} onClick={() => setOpen(false)}>
-            <Car size={18} />
-            Individual
-          </NavLink>
         </nav>
 
-        {/* LOGOUT */}
-        <div className="p-4 border-t">
+        {/* FOOTER */}
+        <div className="p-4 border-t bg-gray-50">
+
           <button
             onClick={logout}
-            className="flex items-center gap-3 w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg"
+            className="
+              flex items-center gap-3 w-full
+              px-4 py-3 rounded-xl
+              text-red-600 hover:bg-red-50
+              transition-all duration-200
+              font-medium text-sm
+            "
           >
             <LogOut size={18} />
             Logout
           </button>
+
         </div>
       </aside>
     </>

@@ -20,6 +20,7 @@ type CarType = {
   transmission?: string;
   kmDriven?: number;
   images?: string[];
+  coverImage?: string;
   sellerPrice?: number;
   adminSellingPrice?: number;
   status?: "LIVE" | "SOLD";
@@ -46,6 +47,7 @@ const normalizeCar = (item: any): CarType => ({
   transmission: item.car?.transmission,
   kmDriven: item.car?.kmDriven,
   images: item.car?.images || [],
+  coverImage: item.car?.coverImage,
   features: item.car?.features || {},
   sellerPrice: item.sellerPrice,
   adminSellingPrice: item.adminSellingPrice,
@@ -88,11 +90,9 @@ const BuyCar = () => {
       );
 
       // URL mein page aur limit bhej rahe hain
-      const res = await api.get(
-        `/admin/live-cars?page=${page}&limit=${itemsPerPage}`,
-      );
+      const res = await api.get(`/cars?page=${page}&limit=${itemsPerPage}`);
 
-      // console.log("📦 [BuyCar] API Response:", res.data);
+      console.log("📦 [BuyCar] API Response:", res.data);
       // console.log("📊 [BuyCar] Response structure:", {
       //   hasData: !!res.data.data,
       //   dataLength: res.data.data?.length,
@@ -100,15 +100,15 @@ const BuyCar = () => {
       //   currentPage: res.data.currentPage,
       // });
 
-      console.log("📊 [BuyCar] Response structure:", {
-        isArray: Array.isArray(res.data),
-        hasData: !!res.data?.data,
-        dataLength: Array.isArray(res.data)
-          ? res.data.length
-          : res.data?.data?.length,
-        totalPages: Array.isArray(res.data) ? 1 : res.data?.totalPages,
-        currentPage: Array.isArray(res.data) ? page : res.data?.currentPage,
-      });
+      // console.log("📊 [BuyCar] Response structure:", {
+      //   isArray: Array.isArray(res.data),
+      //   hasData: !!res.data?.data,
+      //   dataLength: Array.isArray(res.data)
+      //     ? res.data.length
+      //     : res.data?.data?.length,
+      //   totalPages: Array.isArray(res.data) ? 1 : res.data?.totalPages,
+      //   currentPage: Array.isArray(res.data) ? page : res.data?.currentPage,
+      // });
 
       // Check karo backend response structure (res.data.data)
       // const normalized = (res.data || []).map(normalizeCar);
@@ -196,25 +196,30 @@ const BuyCar = () => {
   /* ================= UI ================= */
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-red-50 to-slate-300">
       <Navbar />
 
       {/* ================= HERO ================= */}
-      <section className="pt-20 pb-22 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-700 via-red-700 to-gray-700" />
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-blue-200/20 blur-3xl rounded-full" />
+      <section className="relative overflow-hidden pt-24 pb-20">
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-red-800 to-black" />
+        <div className="absolute inset-0 opacity-20 bg-[url('/pattern.png')]" />
 
-        <div className="relative container mx-auto px-4 text-center space-y-8">
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white ">
-            Find Your Perfect Car
-          </h1>
-
-          <p className="text-muted-foreground max-w-xl mx-auto text-white">
-            Explore verified vehicles with transparent pricing and trusted
-            history.
+        <div className="relative container mx-auto px-4 text-center">
+          <p className="text-red-300 uppercase tracking-[0.3em] text-sm font-semibold mb-4">
+            United Motors
           </p>
 
-          <div className="">
+          <h1 className="text-5xl md:text-7xl font-extrabold text-white leading-tight">
+            Certified Cars.
+            <span className="block text-red-400">Trusted Deals.</span>
+          </h1>
+
+          <p className="mt-6 text-xl text-gray-300 max-w-3xl mx-auto">
+            Buy premium pre-owned cars backed by inspections, transparent pricing,
+            and complete peace of mind.
+          </p>
+
+          <div className="mt-12 max-w-6xl mx-auto bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 shadow-2xl">
             <FilterSection onFilter={handleFilter} />
           </div>
         </div>
@@ -239,6 +244,7 @@ const BuyCar = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
               {displayCars.map((car) => {
                 const imageUrl =
+                  car.coverImage ||
                   car.images?.[0] ||
                   "https://via.placeholder.com/400x300?text=No+Image";
 
@@ -283,7 +289,7 @@ const BuyCar = () => {
             </div>
           )}
         </div>
-      
+
         {/* RESULTS SECTION KE NICHE */}
         <div>
           <CustomPagination

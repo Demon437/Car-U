@@ -26,6 +26,103 @@ const SellerDocumentSchema = new mongoose.Schema(
   { _id: false }
 );
 
+
+
+
+const SellerSettlementSchema = new mongoose.Schema(
+  {
+    onlinePayment: {
+      paymentMode: {
+        type: String,
+        default: "",
+      },
+
+      bankName: {
+        type: String,
+        default: "",
+      },
+
+      transactionId: {
+        type: String,
+        default: "",
+      },
+
+      amount: {
+        type: Number,
+        default: 0,
+      },
+
+      paymentDate: {
+        type: Date,
+      },
+
+      notes: {
+        type: String,
+        default: "",
+      },
+    },
+
+    cashPayment: {
+      amount: {
+        type: Number,
+        default: 0,
+      },
+
+      receivedBy: {
+        type: String,
+        default: "",
+      },
+
+      paymentDate: {
+        type: Date,
+      },
+
+      notes: {
+        type: String,
+        default: "",
+      },
+    },
+
+    totalPurchaseAmount: {
+      type: Number,
+      default: 0,
+    },
+
+    totalPaidAmount: {
+      type: Number,
+      default: 0,
+    },
+
+    dueAmount: {
+      type: Number,
+      default: 0,
+    },
+  },
+  { _id: false }
+);
+
+// =====================
+// PURCHASE PAYMENT ITEM
+// =====================
+const PurchasePaymentSchema = new mongoose.Schema(
+  {
+    amount: { type: Number, required: true },
+    paymentType: {
+      type: String,
+      enum: ["CASH", "UPI", "BANK", "CHEQUE"],
+      default: "CASH",
+    },
+    note: { type: String, default: "" },
+    paymentDate: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
+
+
+
+
+
 /* =================================================
    MAIN SELL REQUEST SCHEMA
 ================================================= */
@@ -82,6 +179,38 @@ const SellRequestSchema = new mongoose.Schema(
       type: [SellerDocumentSchema],
       default: [],
     },
+
+
+    // =====================
+    // SELLER SETTLEMENT
+    // =====================
+    sellerSettlement: {
+      type: SellerSettlementSchema,
+      default: () => ({}),
+    },
+
+    // =====================
+    // PURCHASE PAYMENTS (ADMIN PAYMENTS TO SELLER)
+    // =====================
+    purchasePayments: {
+      type: [PurchasePaymentSchema],
+      default: [],
+    },
+
+    extraAdminExpenses: [
+      {
+        label: {
+          type: String,
+          default: "",
+        },
+
+        amount: {
+          type: Number,
+          default: 0,
+        },
+      },
+    ],
+
 
     // =====================
     // CAR DETAILS
